@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="33%" stop-color="#06B6D4"/>
+      <stop offset="66%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Outer ring with gradient -->
+  <circle cx="60" cy="60" r="56" fill="url(#g2)" stroke="url(#g)" stroke-width="2" opacity="0.9"/>
+  <circle cx="60" cy="60" r="48" stroke="url(#g)" stroke-width="0.5" opacity="0.3" stroke-dasharray="4 4"/>
+  <!-- Shield -->
+  <path d="M60 20 L92 36 L92 60 C92 78 78 92 60 98 C42 92 28 78 28 60 L28 36 Z" stroke="url(#g)" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+  <!-- Checkmark -->
+  <path d="M48 62 L56 70 L72 50" stroke="url(#g)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- ZK text -->
+  <text x="36" y="104" font-family="'Courier New', monospace" font-size="16" font-weight="bold" fill="url(#g)" letter-spacing="2">ZK</text>
+  <!-- Lock decorative dots -->
+  <circle cx="60" cy="46" r="3" fill="#8B5CF6" opacity="0.4"/>
+  <circle cx="60" cy="46" r="1.5" fill="#06B6D4"/>
+</svg>

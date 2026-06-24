@@ -1,0 +1,4 @@
+[package]
+name = "zklease"
+type = "bin"
+compiler_version = ">=0.38.0"

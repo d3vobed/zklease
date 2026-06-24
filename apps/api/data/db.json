@@ -1,0 +1,12 @@
+{
+  "verifications": [
+    {
+      "id": "a718ad82-9a81-43a7-b692-48da4cd90eb3",
+      "owner": "GABCDEF123456789",
+      "threshold": "1000000",
+      "txHash": "abc123def456",
+      "network": "testnet",
+      "timestamp": 1782312015460
+    }
+  ]
+}

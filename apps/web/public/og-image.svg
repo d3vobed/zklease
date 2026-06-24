@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Grid pattern -->
+  <g opacity="0.05">
+    <line x1="100" y1="0" x2="100" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="300" y1="0" x2="300" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="500" y1="0" x2="500" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="700" y1="0" x2="700" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="900" y1="0" x2="900" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="1100" y1="0" x2="1100" y2="630" stroke="white" stroke-width="0.5"/>
+    <line x1="0" y1="100" x2="1200" y2="100" stroke="white" stroke-width="0.5"/>
+    <line x1="0" y1="300" x2="1200" y2="300" stroke="white" stroke-width="0.5"/>
+    <line x1="0" y1="500" x2="1200" y2="500" stroke="white" stroke-width="0.5"/>
+  </g>
+  <!-- Shield -->
+  <path d="M160 180 L260 240 L260 340 C260 410 210 450 160 470 C110 450 60 410 60 340 L60 240 Z" stroke="url(#g2)" stroke-width="4" fill="none" opacity="0.15"/>
+  <path d="M130 280 L160 310 L200 260" stroke="url(#g2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Title -->
+  <text x="340" y="310" font-family="'Courier New', monospace" font-size="72" font-weight="bold" fill="url(#g2)" letter-spacing="4">ZKLease</text>
+  <!-- Subtitle -->
+  <text x="340" y="390" font-family="'Courier New', monospace" font-size="28" font-weight="300" fill="#94A3B8" letter-spacing="3">Zero-Knowledge Proof for USDC Balance on Stellar</text>
+  <!-- Feature badges -->
+  <rect x="340" y="420" width="140" height="36" rx="18" stroke="#8B5CF6" stroke-width="1.5" fill="none" opacity="0.8"/>
+  <text x="410" y="444" font-family="monospace" font-size="14" fill="#8B5CF6" text-anchor="middle">Noir UltraHonk</text>
+  <rect x="500" y="420" width="140" height="36" rx="18" stroke="#06B6D4" stroke-width="1.5" fill="none" opacity="0.8"/>
+  <text x="570" y="444" font-family="monospace" font-size="14" fill="#06B6D4" text-anchor="middle">Soroban P26</text>
+  <rect x="660" y="420" width="160" height="36" rx="18" stroke="#10B981" stroke-width="1.5" fill="none" opacity="0.8"/>
+  <text x="740" y="444" font-family="monospace" font-size="14" fill="#10B981" text-anchor="middle">Non-Transferable NFT</text>
+  <!-- Bottom gradient line -->
+  <rect x="0" y="625" width="1200" height="5" fill="url(#g)"/>
+</svg>

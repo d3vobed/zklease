@@ -1,0 +1,3 @@
+balance = "1000"
+threshold = "500"
+user_address = "0x1234567890abcdef1234567890abcdef12345678"

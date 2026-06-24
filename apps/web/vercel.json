@@ -1,0 +1,39 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npx turbo build --filter=zklease-web",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && npm install --frozen-lockfile",
+  "regions": ["iad1"],
+  "public": false,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "github": {
+    "silent": true,
+    "autoJobCancelation": true
+  },
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@next_public_api_url",
+    "NEXT_PUBLIC_STELLAR_RPC_URL": "@next_public_stellar_rpc_url",
+    "NEXT_PUBLIC_STELLAR_NETWORK": "@next_public_stellar_network",
+    "NEXT_PUBLIC_CONTRACT_ID": "@next_public_contract_id",
+    "NEXT_PUBLIC_USDC_CONTRACT_ID": "@next_public_usdc_contract_id"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/dashboard",
+      "permanent": false
+    }
+  ]
+}

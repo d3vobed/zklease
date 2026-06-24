@@ -1,0 +1,43 @@
+# ─── ZKLease — API Dockerfile (used by Railway) ───────────────────────────
+# Standalone Dockerfile for the Express API server.
+# ──────────────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat
+
+COPY apps/api/package.json package.json
+COPY package.json turbo.json /app/
+
+RUN npm install --frozen-lockfile 2>/dev/null || npm install
+
+COPY apps/api ./apps/api
+
+RUN npm run build --filter=zklease-api 2>/dev/null || \
+    (cd apps/api && npx tsc)
+
+# ── Production ────────────────────────────────────────────────────────────
+FROM node:20-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=4000
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 appuser
+
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+RUN mkdir -p /app/data && chown -R appuser:nodejs /app/data
+
+USER appuser
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
+
+CMD ["node", "dist/index.js"]

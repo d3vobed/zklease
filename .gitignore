@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+.env
+.env.local
+.env*.local
+coverage/
+*.log
+.DS_Store
+**/*.wasm
+circuits/noir/target/
+circuits/noir/proofs/
+contracts/*/target/
+__pycache__/
+*.pyc
