@@ -29,6 +29,8 @@ export function CredentialCard({ credential, className }: CredentialCardProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const txId = credential.txHashes?.[0];
+
   return (
     <Card className={cn("relative overflow-hidden", className)}>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-teal-500/5" />
@@ -68,18 +70,18 @@ export function CredentialCard({ credential, className }: CredentialCardProps) {
             <div>
               <p className="text-xs text-muted-foreground">Issued</p>
               <p className="text-sm font-medium">
-                {formatDate(credential.issuedAt)}
+                {formatDate(new Date(credential.lastVerified).toISOString())}
               </p>
             </div>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Token ID</p>
+            <p className="text-xs text-muted-foreground">Address</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 truncate rounded bg-white/5 px-2 py-0.5 font-mono text-xs">
-                {credential.tokenId}
+                {credential.address}
               </code>
               <button
-                onClick={() => handleCopy(credential.tokenId)}
+                onClick={() => handleCopy(credential.address)}
                 className="shrink-0 rounded p-1 text-foreground/50 hover:text-foreground hover:bg-white/5 transition-colors"
               >
                 {copied ? (
@@ -105,7 +107,7 @@ export function CredentialCard({ credential, className }: CredentialCardProps) {
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={() => handleCopy(credential.tokenId)}
+            onClick={() => handleCopy(credential.address)}
           >
             {copied ? (
               <>
@@ -115,11 +117,11 @@ export function CredentialCard({ credential, className }: CredentialCardProps) {
             ) : (
               <>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />
-                Copy ID
+                Copy Address
               </>
             )}
           </Button>
-          {credential.metadata?.transactionId && (
+          {txId && (
             <Button
               variant="outline"
               size="sm"
@@ -127,7 +129,7 @@ export function CredentialCard({ credential, className }: CredentialCardProps) {
               asChild
             >
               <a
-                href={`https://stellar.expert/explorer/testnet/tx/${credential.metadata.transactionId}`}
+                href={`https://stellar.expert/explorer/testnet/tx/${txId}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

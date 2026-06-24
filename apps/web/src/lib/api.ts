@@ -1,41 +1,41 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-
 export interface VerificationRequest {
-  publicKey: string;
+  owner: string;
   threshold: string;
-  proof: string;
+  txHash: string;
+  network: string;
 }
 
 export interface VerificationResponse {
-  success: boolean;
-  transactionId?: string;
-  credentialId?: string;
-  error?: string;
+  id: string;
+  owner: string;
+  threshold: string;
+  txHash: string;
+  network: string;
+  timestamp: number;
 }
 
 export interface VerificationRecord {
   id: string;
-  publicKey: string;
+  owner: string;
   threshold: string;
-  status: "pending" | "verified" | "failed";
-  transactionId?: string;
-  timestamp: string;
+  txHash: string;
+  network: string;
+  timestamp: number;
 }
 
 export interface Credential {
-  id: string;
-  tokenId: string;
-  publicKey: string;
+  address: string;
+  verified: boolean;
   threshold: string;
-  issuedAt: string;
-  metadata: Record<string, string>;
+  txHashes: string[];
+  lastVerified: number;
 }
 
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(endpoint, {
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
@@ -52,26 +52,22 @@ async function fetchApi<T>(
 }
 
 export const api = {
-  async verifyBalance(data: VerificationRequest): Promise<VerificationResponse> {
-    return fetchApi<VerificationResponse>("/verify", {
+  async submitVerification(data: VerificationRequest): Promise<VerificationResponse> {
+    return fetchApi<VerificationResponse>("/api/verification", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
-  async getHistory(publicKey: string): Promise<VerificationRecord[]> {
-    return fetchApi<VerificationRecord[]>(`/history?publicKey=${publicKey}`);
+  async getHistory(address: string): Promise<VerificationRecord[]> {
+    return fetchApi<VerificationRecord[]>(`/api/verification/${address}`);
   },
 
-  async getCredentials(publicKey: string): Promise<Credential[]> {
-    return fetchApi<Credential[]>(`/credentials?publicKey=${publicKey}`);
+  async getCredential(address: string): Promise<Credential | null> {
+    return fetchApi<Credential | null>(`/api/credential/${address}`);
   },
 
-  async getCredentialById(id: string): Promise<Credential | null> {
-    return fetchApi<Credential>(`/credentials/${id}`);
-  },
-
-  async getProofStatus(id: string): Promise<{ status: string; transactionId?: string }> {
-    return fetchApi<{ status: string; transactionId?: string }>(`/proofs/${id}/status`);
+  async getStats(): Promise<{ totalVerifications: number; uniqueOwners: number }> {
+    return fetchApi("/api/stats");
   },
 };

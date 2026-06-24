@@ -9,8 +9,19 @@ import { getStats } from "./services/storage.js";
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 
+app.use(cors({
+  origin: [
+    "https://zklease.vercel.app",
+    "https://web-navy-kappa-19.vercel.app",
+    "https://web-62j2qzasr-d3vobeds-projects.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(helmet());
-app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 

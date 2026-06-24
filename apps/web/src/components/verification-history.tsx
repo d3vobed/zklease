@@ -5,33 +5,13 @@ import { useWallet } from "@/hooks/use-wallet";
 import { api, VerificationRecord } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import {
   History,
   Loader2,
   CheckCircle2,
-  XCircle,
-  Clock,
   ExternalLink,
 } from "lucide-react";
-
-const statusConfig = {
-  pending: {
-    label: "Pending",
-    icon: Clock,
-    variant: "warning" as const,
-  },
-  verified: {
-    label: "Verified",
-    icon: CheckCircle2,
-    variant: "success" as const,
-  },
-  failed: {
-    label: "Failed",
-    icon: XCircle,
-    variant: "destructive" as const,
-  },
-};
 
 export function VerificationHistory() {
   const { publicKey } = useWallet();
@@ -141,51 +121,44 @@ export function VerificationHistory() {
                 </tr>
               </thead>
               <tbody>
-                {records.map((record) => {
-                  const config = statusConfig[record.status];
-                  const StatusIcon = config.icon;
-                  return (
-                    <tr
-                      key={record.id}
-                      className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
-                    >
-                      <td className="whitespace-nowrap px-3 py-3 text-sm">
-                        {formatDate(record.timestamp)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm font-medium">
-                        ${record.threshold} USDC
-                      </td>
-                      <td className="px-3 py-3">
-                        <Badge
-                          variant={config.variant}
-                          className="flex w-fit items-center gap-1"
+                {records.map((record) => (
+                  <tr
+                    key={record.id}
+                    className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
+                  >
+                    <td className="whitespace-nowrap px-3 py-3 text-sm">
+                      {formatDate(new Date(record.timestamp).toISOString())}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-sm font-medium">
+                      ${record.threshold} USDC
+                    </td>
+                    <td className="px-3 py-3">
+                      <Badge variant="success" className="flex w-fit items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Verified
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3">
+                      {record.txHash ? (
+                        <a
+                          href={`https://stellar.expert/explorer/testnet/tx/${record.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 transition-colors"
                         >
-                          <StatusIcon className="h-3 w-3" />
-                          {config.label}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-3">
-                        {record.transactionId ? (
-                          <a
-                            href={`https://stellar.expert/explorer/testnet/tx/${record.transactionId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                          >
-                            <code className="text-xs">
-                              {record.transactionId.slice(0, 8)}...
-                            </code>
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                          <code className="text-xs">
+                            {record.txHash.slice(0, 8)}...
+                          </code>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

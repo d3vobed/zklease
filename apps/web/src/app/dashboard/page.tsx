@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@/hooks/use-wallet";
-import { api, Credential } from "@/lib/api";
+import { api, type Credential } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const { publicKey, isConnected, connect, isConnecting } = useWallet();
-  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [credential, setCredential] = useState<Credential | null>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(true);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
@@ -40,24 +40,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!publicKey) {
-      setCredentials([]);
+      setCredential(null);
       setIsLoadingCreds(false);
       return;
     }
 
-    const fetchCredentials = async () => {
+    const fetchCredential = async () => {
       setIsLoadingCreds(true);
       try {
-        const data = await api.getCredentials(publicKey);
-        setCredentials(data);
+        const data = await api.getCredential(publicKey);
+        setCredential(data);
       } catch {
-        setCredentials([]);
+        setCredential(null);
       } finally {
         setIsLoadingCreds(false);
       }
     };
 
-    fetchCredentials();
+    fetchCredential();
   }, [publicKey]);
 
   if (!isConnected) {
@@ -90,25 +90,27 @@ export default function DashboardPage() {
     );
   }
 
+  const totalProofs = credential?.txHashes?.length ?? 0;
+
   const stats = [
     {
       icon: Award,
-      label: "Credentials",
-      value: credentials.length.toString(),
+      label: "Credential",
+      value: credential?.verified ? "1" : "0",
       gradient: "from-purple-500/20 to-violet-500/20",
       iconColor: "text-purple-400",
     },
     {
       icon: Shield,
       label: "Total Proofs",
-      value: "—",
+      value: totalProofs.toString(),
       gradient: "from-teal-500/20 to-cyan-500/20",
       iconColor: "text-teal-400",
     },
     {
       icon: Activity,
       label: "Verifications",
-      value: "—",
+      value: totalProofs.toString(),
       gradient: "from-amber-500/20 to-orange-500/20",
       iconColor: "text-amber-400",
     },
@@ -204,7 +206,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Award className="h-5 w-5 text-muted-foreground" />
-              Credentials
+              Credential
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -213,30 +215,22 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-      ) : credentials.length > 0 ? (
+      ) : credential?.verified ? (
         <div className="mb-8">
           <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
             <Award className="h-5 w-5 text-purple-400" />
-            Credentials
-            <span className="ml-auto text-sm font-normal text-muted-foreground">
-              {credentials.length} issued
-            </span>
+            Verified Credential
           </h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {credentials.map((credential) => (
-              <CredentialCard
-                key={credential.id}
-                credential={credential}
-              />
-            ))}
-          </div>
+          <CredentialCard
+            credential={credential}
+          />
         </div>
       ) : (
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Award className="h-5 w-5 text-muted-foreground" />
-              Credentials
+              Credential
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -245,11 +239,11 @@ export default function DashboardPage() {
                 <Award className="h-8 w-8 text-muted-foreground/40" />
               </div>
               <h3 className="mb-2 text-lg font-medium">
-                No Credentials Yet
+                No Credential Yet
               </h3>
               <p className="mb-6 max-w-sm text-sm text-muted-foreground">
                 Generate your first zero-knowledge proof to receive a verified
-                credential NFT.
+                credential.
               </p>
               <Button asChild>
                 <Link href="/verify">

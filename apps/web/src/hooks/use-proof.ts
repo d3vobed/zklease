@@ -76,23 +76,20 @@ export function useProof() {
       setState((prev) => ({ ...prev, status: "submitting", progress: 85 }));
 
       // Submit to API
-      const result = await api.verifyBalance({
-        publicKey,
+      const result = await api.submitVerification({
+        owner: publicKey,
         threshold: state.threshold,
-        proof: mockProof,
+        txHash: `0x${mockProof.slice(0, 16)}`,
+        network: "TESTNET",
       });
 
-      if (result.success) {
-        setState((prev) => ({
-          ...prev,
-          status: "success",
-          progress: 100,
-          transactionId: result.transactionId,
-          credentialId: result.credentialId,
-        }));
-      } else {
-        throw new Error(result.error || "Verification failed");
-      }
+      setState((prev) => ({
+        ...prev,
+        status: "success",
+        progress: 100,
+        transactionId: result.txHash,
+        credentialId: result.id,
+      }));
     } catch (error) {
       setState((prev) => ({
         ...prev,
