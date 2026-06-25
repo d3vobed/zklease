@@ -28,6 +28,7 @@
         }
       ]
     ],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
@@ -35,16 +36,26 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "grant_credential",
+              "function_name": "create_prediction",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "u128": "100"
+                  "symbol": "q1"
                 },
                 {
-                  "bytes": "55484b0100000000cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+                  "vec": [
+                    {
+                      "symbol": "a"
+                    },
+                    {
+                      "symbol": "b"
+                    }
+                  ]
+                },
+                {
+                  "u64": "1000"
                 }
               ]
             }
@@ -60,16 +71,26 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "grant_credential",
+              "function_name": "create_prediction",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "u128": "200"
+                  "symbol": "q2"
                 },
                 {
-                  "bytes": "55484b0100000000cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+                  "vec": [
+                    {
+                      "symbol": "a"
+                    },
+                    {
+                      "symbol": "b"
+                    }
+                  ]
+                },
+                {
+                  "u64": "2000"
                 }
               ]
             }
@@ -121,124 +142,12 @@
                       "key": {
                         "vec": [
                           {
-                            "symbol": "Credential"
-                          },
-                          {
-                            "u64": "1"
-                          }
-                        ]
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "is_active"
-                            },
-                            "val": {
-                              "bool": true
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "network"
-                            },
-                            "val": {
-                              "symbol": "zklease"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "owner"
-                            },
-                            "val": {
-                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "threshold"
-                            },
-                            "val": {
-                              "u128": "100"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "verification_timestamp"
-                            },
-                            "val": {
-                              "u64": "0"
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "vec": [
-                          {
-                            "symbol": "Credential"
-                          },
-                          {
-                            "u64": "2"
-                          }
-                        ]
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "is_active"
-                            },
-                            "val": {
-                              "bool": true
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "network"
-                            },
-                            "val": {
-                              "symbol": "zklease"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "owner"
-                            },
-                            "val": {
-                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "threshold"
-                            },
-                            "val": {
-                              "u128": "200"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "verification_timestamp"
-                            },
-                            "val": {
-                              "u64": "0"
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "vec": [
-                          {
                             "symbol": "CredentialCounter"
                           }
                         ]
                       },
                       "val": {
-                        "u64": "2"
+                        "u64": "0"
                       }
                     },
                     {
@@ -257,20 +166,202 @@
                       "key": {
                         "vec": [
                           {
-                            "symbol": "OwnerCredentials"
+                            "symbol": "Prediction"
                           },
                           {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                            "u64": "1"
                           }
                         ]
                       },
                       "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "bets"
+                            },
+                            "val": {
+                              "vec": []
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "creator"
+                            },
+                            "val": {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "id"
+                            },
+                            "val": {
+                              "u64": "1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "options"
+                            },
+                            "val": {
+                              "vec": [
+                                {
+                                  "symbol": "a"
+                                },
+                                {
+                                  "symbol": "b"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "question"
+                            },
+                            "val": {
+                              "symbol": "q1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "resolution_time"
+                            },
+                            "val": {
+                              "u64": "1000"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "resolved"
+                            },
+                            "val": {
+                              "bool": false
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_bets"
+                            },
+                            "val": {
+                              "vec": [
+                                {
+                                  "u128": "0"
+                                },
+                                {
+                                  "u128": "0"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "winning_option"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "vec": [
                           {
-                            "u64": "1"
+                            "symbol": "Prediction"
                           },
                           {
                             "u64": "2"
+                          }
+                        ]
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "bets"
+                            },
+                            "val": {
+                              "vec": []
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "creator"
+                            },
+                            "val": {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "id"
+                            },
+                            "val": {
+                              "u64": "2"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "options"
+                            },
+                            "val": {
+                              "vec": [
+                                {
+                                  "symbol": "a"
+                                },
+                                {
+                                  "symbol": "b"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "question"
+                            },
+                            "val": {
+                              "symbol": "q2"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "resolution_time"
+                            },
+                            "val": {
+                              "u64": "2000"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "resolved"
+                            },
+                            "val": {
+                              "bool": false
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_bets"
+                            },
+                            "val": {
+                              "vec": [
+                                {
+                                  "u128": "0"
+                                },
+                                {
+                                  "u128": "0"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "winning_option"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
                           }
                         ]
                       }
@@ -284,7 +375,7 @@
                         ]
                       },
                       "val": {
-                        "u64": "0"
+                        "u64": "2"
                       }
                     },
                     {

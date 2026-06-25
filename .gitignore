@@ -15,3 +15,5 @@ circuits/noir/proofs/
 contracts/*/target/
 __pycache__/
 *.pyc
+.vercel
+contracts/*/test_snapshots/

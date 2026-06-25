@@ -1,0 +1,11 @@
+node_modules
+apps/api
+apps/web/node_modules
+contracts
+circuits
+scripts
+docs
+Dockerfile
+Dockerfile.api
+*.wasm
+*.tar.gz

@@ -90,6 +90,25 @@ init_contract() {
 
   info "Initializing contract $contract_id…"
 
+  local admin_pubkey
+  admin_pubkey=$(soroban keys address "$SOROBAN_ACCOUNT" 2>/dev/null || echo "")
+
+  if [[ -z "$admin_pubkey" ]]; then
+    warn "Could not resolve admin address from key $SOROBAN_ACCOUNT"
+    warn "Skipping init — call manually:"
+    echo "  soroban contract invoke \\"
+    echo "    --id $contract_id \\"
+    echo "    --source $SOROBAN_ACCOUNT \\"
+    echo "    --network $SOROBAN_NETWORK \\"
+    echo "    -- \\"
+    echo "    initialize \\"
+    echo "    --admin <ADMIN_ADDRESS> \\"
+    echo "    --verifier <VERIFIER_ADDRESS>"
+    return
+  fi
+
+  info "Initializing contract $contract_id with admin $admin_pubkey…"
+
   soroban contract invoke \
     --id "$contract_id" \
     --source "$SOROBAN_ACCOUNT" \
@@ -98,7 +117,8 @@ init_contract() {
     --network "$SOROBAN_NETWORK" \
     -- \
     initialize \
-    --admin "$SOROBAN_ACCOUNT" 2>&1 || {
+    --admin "$admin_pubkey" \
+    --verifier "$admin_pubkey" 2>&1 || {
     warn "Initialization failed (may already be initialized)"
   }
 

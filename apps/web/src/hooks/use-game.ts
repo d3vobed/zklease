@@ -52,6 +52,8 @@ function createMockGame(creator: string, entryFee: number): Game {
   };
 }
 
+const API_BASE = typeof window !== "undefined" ? "" : "";
+
 export function useGame() {
   const { publicKey } = useWallet();
   const [games, setGames] = useState<Game[]>([]);
@@ -65,7 +67,13 @@ export function useGame() {
     setIsLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 400));
+      const res = await fetch(`${API_BASE}/api/games`).catch(() => null);
+      if (res?.ok) {
+        const data = await res.json();
+        setGames(data.games || []);
+      } else {
+        await new Promise((r) => setTimeout(r, 400));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch games");
     } finally {
@@ -78,7 +86,6 @@ export function useGame() {
     setIsLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 300));
       const userGames = games.filter(
         (g) => g.creator === publicKey || g.opponent === publicKey
       );

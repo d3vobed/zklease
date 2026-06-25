@@ -6,16 +6,23 @@ import {
   SorobanRpc,
   TransactionBuilder,
   Horizon,
+  xdr,
+  scValToNative,
 } from "@stellar/stellar-sdk";
 
 export const STELLAR_NETWORK = Networks.TESTNET;
 export const STELLAR_RPC_URL = "https://soroban-testnet.stellar.org";
 export const STELLAR_HORIZON_URL = "https://horizon-testnet.stellar.org";
 
-export const USDC_CONTRACT_ID =
-  "CCW67TSZV3SSWZ6YQ6KQKJN7ED5QG2R2ZNZQ2R2ZNZQ2R2ZNZQ2R2ZN";
-export const ZKLEASE_CONTRACT_ID =
+export const STELLAR_EXPLORER_URL = "https://stellar.expert/explorer/testnet";
+
+// Update this after deploying the contract via `soroban contract deploy`
+export let ZKLEASE_CONTRACT_ID =
   "CAABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUV";
+
+export function setContractId(id: string) {
+  ZKLEASE_CONTRACT_ID = id;
+}
 
 export interface AccountBalance {
   asset: string;
@@ -70,6 +77,42 @@ export async function getUsdcBalance(publicKey: string): Promise<string> {
   } catch {
     return "0";
   }
+}
+
+async function simulateAndBuildTx(
+  publicKey: string,
+  contractOp: xdr.Operation
+): Promise<string> {
+  const account = await sorobanServer.getAccount(publicKey);
+  const contract = new Contract(ZKLEASE_CONTRACT_ID);
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: STELLAR_NETWORK,
+  })
+    .addOperation(contractOp)
+    .setTimeout(30)
+    .build();
+
+  const simulation = await sorobanServer.simulateTransaction(tx);
+  if ("error" in simulation) {
+    throw new Error(`Simulation failed: ${simulation.error}`);
+  }
+
+  const foot = simulation.transactionData?.build()?.toXDR("base64");
+  if (!foot) throw new Error("No transaction data from simulation");
+
+  return foot;
+}
+
+export async function simulateContractCall(
+  publicKey: string,
+  method: string,
+  args: xdr.ScVal[]
+): Promise<string> {
+  const contract = new Contract(ZKLEASE_CONTRACT_ID);
+  const op = contract.call(method, ...args);
+  return simulateAndBuildTx(publicKey, op);
 }
 
 export async function submitProofTransaction(
@@ -127,4 +170,35 @@ export function isStellarAddress(address: string): boolean {
   return /^G[A-Z2-7]{55}$/.test(address);
 }
 
-export const STELLAR_EXPLORER_URL = "https://stellar.expert/explorer/testnet";
+export function scvalToString(val: xdr.ScVal): string {
+  const native = scValToNative(val);
+  return typeof native === "string" ? native : JSON.stringify(native);
+}
+
+export function makeAddressScVal(address: string): xdr.ScVal {
+  return nativeToScVal(address, { type: "address" });
+}
+
+export function makeU128ScVal(val: number): xdr.ScVal {
+  return nativeToScVal(val, { type: "u128" });
+}
+
+export function makeU64ScVal(val: number): xdr.ScVal {
+  return nativeToScVal(val, { type: "u64" });
+}
+
+export function makeU32ScVal(val: number): xdr.ScVal {
+  return nativeToScVal(val, { type: "u32" });
+}
+
+export function makeBytesScVal(bytes: Uint8Array): xdr.ScVal {
+  return nativeToScVal(bytes, { type: "bytes" });
+}
+
+export function makeSymbolScVal(sym: string): xdr.ScVal {
+  return nativeToScVal(sym, { type: "symbol" });
+}
+
+export function makeVecScVal(items: xdr.ScVal[]): xdr.ScVal {
+  return xdr.ScVal.scvVec(items);
+}
