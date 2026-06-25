@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CredentialCard } from "@/components/credential-card";
 import { VerificationHistory } from "@/components/verification-history";
-import { truncateAddress } from "@/lib/utils";
+import { truncateAddress, formatAmount } from "@/lib/utils";
 import {
   Wallet,
   Shield,
@@ -19,10 +19,100 @@ import {
   ExternalLink,
   Loader2,
   ArrowRight,
+  Swords,
+  TrendingUp,
+  Gamepad2,
+  Trophy,
+  Coins,
+  Percent,
+  Clock,
+  Play,
+  Eye,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+interface ActiveGame {
+  id: string;
+  type: "rps" | "prediction";
+  entryFee: string;
+  status: "waiting" | "committed" | "reveal" | "completed";
+  opponent?: string;
+  myMove?: string;
+  outcome?: "win" | "lose" | "draw";
+  createdAt: number;
+}
+
+interface Prediction {
+  id: string;
+  market: string;
+  amount: string;
+  position: string;
+  status: "active" | "won" | "lost" | "claimed";
+  outcome?: string;
+  payout?: string;
+  createdAt: number;
+  resolvedAt?: number;
+}
+
+const mockGames: ActiveGame[] = [
+  {
+    id: "1",
+    type: "rps",
+    entryFee: "10",
+    status: "committed",
+    opponent: "GABC…1234",
+    createdAt: Date.now() - 3600000,
+  },
+  {
+    id: "2",
+    type: "rps",
+    entryFee: "25",
+    status: "reveal",
+    opponent: "GDEF…5678",
+    createdAt: Date.now() - 7200000,
+  },
+  {
+    id: "3",
+    type: "prediction",
+    entryFee: "50",
+    status: "waiting",
+    createdAt: Date.now() - 1800000,
+  },
+];
+
+const mockPredictions: Prediction[] = [
+  {
+    id: "p1",
+    market: "BTC > $100K by June 2026",
+    amount: "25",
+    position: "Yes",
+    status: "won",
+    outcome: "Yes",
+    payout: "47.50",
+    createdAt: Date.now() - 86400000 * 3,
+    resolvedAt: Date.now() - 3600000,
+  },
+  {
+    id: "p2",
+    market: "Stellar XLM > $1 by July 2026",
+    amount: "50",
+    position: "No",
+    status: "active",
+    createdAt: Date.now() - 86400000 * 7,
+  },
+  {
+    id: "p3",
+    market: "Fed rate cut > 50bps in June",
+    amount: "10",
+    position: "Yes",
+    status: "lost",
+    outcome: "No",
+    createdAt: Date.now() - 86400000 * 14,
+    resolvedAt: Date.now() - 86400000 * 2,
+  },
+];
 
 export default function DashboardPage() {
   const { publicKey, isConnected, connect, isConnecting } = useWallet();
@@ -69,8 +159,8 @@ export default function DashboardPage() {
           </div>
           <h1 className="mb-3 text-3xl font-bold">Dashboard</h1>
           <p className="mb-8 max-w-md text-zinc-400">
-            Connect your Stellar wallet to view your credentials, verification
-            history, and manage your proofs.
+            Connect your Stellar wallet to view your games, predictions,
+            credentials, and more.
           </p>
           <Button size="lg" onClick={connect} disabled={isConnecting}>
             {isConnecting ? (
@@ -91,37 +181,84 @@ export default function DashboardPage() {
   }
 
   const totalProofs = credential?.txHashes?.length ?? 0;
+  const gamesWon = mockGames.filter((g) => g.outcome === "win").length;
+  const gamesPlayed = mockGames.length;
+  const winRate = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+  const totalPredictions = mockPredictions.length;
+  const totalWinnings = mockPredictions
+    .filter((p) => p.status === "won" || p.status === "claimed")
+    .reduce((sum, p) => sum + parseFloat(p.payout || "0"), 0);
 
   const stats = [
     {
       icon: Award,
       label: "Credential",
-      value: credential?.verified ? "1" : "0",
+      value: credential?.verified ? "Active" : "None",
       gradient: "from-purple-500/20 to-violet-500/20",
       iconColor: "text-purple-400",
     },
     {
-      icon: Shield,
-      label: "Total Proofs",
-      value: totalProofs.toString(),
+      icon: Swords,
+      label: "Games Played",
+      value: gamesPlayed.toString(),
+      gradient: "from-violet-500/20 to-purple-500/20",
+      iconColor: "text-violet-400",
+    },
+    {
+      icon: Percent,
+      label: "Win Rate",
+      value: `${winRate}%`,
       gradient: "from-teal-500/20 to-cyan-500/20",
       iconColor: "text-teal-400",
     },
     {
-      icon: Activity,
-      label: "Verifications",
-      value: totalProofs.toString(),
+      icon: TrendingUp,
+      label: "Predictions",
+      value: totalPredictions.toString(),
       gradient: "from-amber-500/20 to-orange-500/20",
       iconColor: "text-amber-400",
     },
+    {
+      icon: Trophy,
+      label: "Total Winnings",
+      value: `$${formatAmount(totalWinnings, 2)}`,
+      gradient: "from-emerald-500/20 to-teal-500/20",
+      iconColor: "text-emerald-400",
+    },
   ];
+
+  const getStatusBadge = (status: ActiveGame["status"]) => {
+    switch (status) {
+      case "waiting":
+        return <Badge variant="warning">Waiting</Badge>;
+      case "committed":
+        return <Badge variant="default">Active</Badge>;
+      case "reveal":
+        return <Badge variant="success">Reveal Ready</Badge>;
+      case "completed":
+        return <Badge variant="secondary">Completed</Badge>;
+    }
+  };
+
+  const getPredictionStatusBadge = (status: Prediction["status"]) => {
+    switch (status) {
+      case "active":
+        return <Badge variant="default">Active</Badge>;
+      case "won":
+        return <Badge variant="success">Won</Badge>;
+      case "lost":
+        return <Badge variant="destructive">Lost</Badge>;
+      case "claimed":
+        return <Badge variant="success">Claimed</Badge>;
+    }
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">Dashboard</h1>
         <p className="text-zinc-400">
-          Manage your credentials and verification history
+          Your games, predictions, credentials, and activity
         </p>
       </div>
 
@@ -169,16 +306,16 @@ export default function DashboardPage() {
               </a>
             </Button>
             <Button asChild>
-              <Link href="/verify">
-                New Proof
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href="/play">
+                <Swords className="mr-2 h-4 w-4" />
+                Play Game
               </Link>
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -201,6 +338,183 @@ export default function DashboardPage() {
         })}
       </div>
 
+      <div className="mb-8 grid gap-6 lg:grid-cols-2">
+        <section>
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
+            <Gamepad2 className="h-5 w-5 text-purple-400" />
+            Active Games
+          </h2>
+          {mockGames.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/10 to-violet-500/10">
+                  <Gamepad2 className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <h3 className="mb-2 text-lg font-medium">No Active Games</h3>
+                <p className="mb-6 max-w-sm text-sm text-muted-foreground">
+                  Start a private game to see it here.
+                </p>
+                <Button asChild>
+                  <Link href="/play">
+                    <Swords className="mr-2 h-4 w-4" />
+                    Start Playing
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {mockGames.map((game) => {
+                const Icon = game.type === "rps" ? Swords : TrendingUp;
+                return (
+                  <Card key={game.id} className="game-card-hover">
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-teal-500/20">
+                          <Icon className="h-5 w-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium capitalize">
+                              {game.type === "rps"
+                                ? "Rock Paper Scissors"
+                                : "Prediction Market"}
+                            </p>
+                            {getStatusBadge(game.status)}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {game.entryFee} USDC entry
+                            {game.opponent && (
+                              <> vs {game.opponent}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {game.status === "reveal" && (
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                            Reveal
+                          </Button>
+                        )}
+                        {game.status === "committed" && (
+                          <Button size="sm" variant="outline" disabled>
+                            <Clock className="mr-1.5 h-3.5 w-3.5" />
+                            Waiting
+                          </Button>
+                        )}
+                        {game.status === "waiting" && (
+                          <Button size="sm" variant="outline">
+                            <Play className="mr-1.5 h-3.5 w-3.5" />
+                            Join
+                          </Button>
+                        )}
+                        {game.status === "completed" && (
+                          <Button size="sm" variant="outline">
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                            View
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
+            <TrendingUp className="h-5 w-5 text-amber-400" />
+            Prediction History
+          </h2>
+          {mockPredictions.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10">
+                  <TrendingUp className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <h3 className="mb-2 text-lg font-medium">
+                  No Predictions Yet
+                </h3>
+                <p className="mb-6 max-w-sm text-sm text-muted-foreground">
+                  Make your first prediction to see it here.
+                </p>
+                <Button asChild>
+                  <Link href="/predict">
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    Make Prediction
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                          Market
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                          Amount
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                          Position
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                          Payout
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mockPredictions.map((prediction) => (
+                        <tr
+                          key={prediction.id}
+                          className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
+                        >
+                          <td className="max-w-[200px] truncate px-4 py-3 text-sm">
+                            {prediction.market}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                            ${prediction.amount}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant={
+                                prediction.position === "Yes"
+                                  ? "success"
+                                  : "warning"
+                              }
+                            >
+                              {prediction.position}
+                            </Badge>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-emerald-400">
+                            {prediction.payout
+                              ? `$${formatAmount(prediction.payout, 2)}`
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {getPredictionStatusBadge(prediction.status)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      </div>
+
       {isLoadingCreds ? (
         <Card className="mb-8">
           <CardHeader>
@@ -221,9 +535,7 @@ export default function DashboardPage() {
             <Award className="h-5 w-5 text-purple-400" />
             Verified Credential
           </h2>
-          <CredentialCard
-            credential={credential}
-          />
+          <CredentialCard credential={credential} />
         </div>
       ) : (
         <Card className="mb-8">

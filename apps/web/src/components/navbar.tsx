@@ -4,12 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WalletConnect } from "@/components/wallet-connect";
 import { cn } from "@/lib/utils";
-import { Shield, LayoutDashboard, Home, Menu, X } from "lucide-react";
+import {
+  Shield,
+  LayoutDashboard,
+  Home,
+  Menu,
+  X,
+  Swords,
+  TrendingUp,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/play", label: "Play", icon: Swords },
+  { href: "/predict", label: "Predict", icon: TrendingUp },
   { href: "/verify", label: "Verify", icon: Shield },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
@@ -34,7 +44,7 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
             return (
               <Link
                 key={link.href}
@@ -78,7 +88,7 @@ export function Navbar() {
           <div className="space-y-1 px-4 py-3">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               return (
                 <Link
                   key={link.href}
