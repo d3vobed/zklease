@@ -7,7 +7,7 @@ import {
   allowAllModules,
   FREIGHTER_ID,
 } from "@creit.tech/stellar-wallets-kit";
-import { isStellarAddress } from "@/lib/stellar";
+import { isStellarAddress } from "@/lib/stellar-constants";
 
 interface WalletContextType {
   kit: StellarWalletsKit | null;

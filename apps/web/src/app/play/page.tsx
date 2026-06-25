@@ -28,7 +28,9 @@ import {
   Gamepad2,
   AlertCircle,
   ArrowRight,
+  Dices,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function PlayPage() {
@@ -263,6 +265,31 @@ export default function PlayPage() {
           </Button>
         </div>
       )}
+
+      <div className="relative mb-8">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Dices className="h-5 w-5 text-amber-400" />
+          Other Games
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/play/dice">
+            <Card className="cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-red-500/5 transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-red-500/20">
+                  <Dices className="h-6 w-6 text-amber-400" />
+                </div>
+                <div>
+                  <p className="font-semibold">Dice Roll</p>
+                  <p className="text-sm text-muted-foreground">
+                    Guess the number and win 5x your bet
+                  </p>
+                </div>
+                <ArrowRight className="ml-auto h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="relative flex justify-center py-16">

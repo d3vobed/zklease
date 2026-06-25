@@ -2,15 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useWallet } from "@/hooks/use-wallet";
-import {
-  makeAddressScVal,
-  makeSymbolScVal,
-  makeVecScVal,
-  makeU64ScVal,
-  makeU32ScVal,
-  makeU128ScVal,
-  simulateContractCall,
-} from "@/lib/stellar";
+import { simulateContractCall, signAndSubmitTransaction } from "@/lib/contract-call";
 
 export interface Prediction {
   id: string;
@@ -40,7 +32,7 @@ function mapPrediction(raw: any): Prediction {
 }
 
 export function usePredict() {
-  const { publicKey } = useWallet();
+  const { publicKey, kit } = useWallet();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,26 +55,33 @@ export function usePredict() {
 
   useEffect(() => { fetchPredictions(); }, [fetchPredictions]);
 
+  const submitTx = useCallback(async (method: string, args: { type: string; value: any }[]) => {
+    if (!publicKey) throw new Error("Wallet not connected");
+    if (!kit) throw new Error("Wallet kit not initialized");
+    const { xdr, result } = await simulateContractCall(method, publicKey, args);
+    await signAndSubmitTransaction(kit, xdr, publicKey);
+    return result;
+  }, [publicKey, kit]);
+
   const createPrediction = useCallback(
     async (question: string, options: string[], resolutionTime: number): Promise<string | null> => {
       if (!publicKey) { setError("Wallet not connected"); return null; }
       setError(null);
       try {
-        const xdr = await simulateContractCall(publicKey, "create_prediction", [
-          makeAddressScVal(publicKey),
-          makeSymbolScVal(question),
-          makeVecScVal(options.map((o) => makeSymbolScVal(o))),
-          makeU64ScVal(Math.floor(resolutionTime / 1000)),
+        const result = await submitTx("create_prediction", [
+          { type: "address", value: publicKey },
+          { type: "symbol", value: question },
+          { type: "vec", value: options.map((o) => ({ type: "symbol", value: o })) },
+          { type: "u64", value: Math.floor(resolutionTime / 1000) },
         ]);
-        alert("Sign in wallet to create prediction:\n" + xdr.slice(0, 40) + "...");
         await fetchPredictions();
-        return null;
+        return result?.toString() || null;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create prediction");
         return null;
       }
     },
-    [publicKey, fetchPredictions]
+    [publicKey, submitTx, fetchPredictions]
   );
 
   const placeBet = useCallback(
@@ -90,13 +89,12 @@ export function usePredict() {
       if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        const xdr = await simulateContractCall(publicKey, "place_bet", [
-          makeU64ScVal(Number(predictionId)),
-          makeAddressScVal(publicKey),
-          makeU32ScVal(optionIndex),
-          makeU128ScVal(amount),
+        await submitTx("place_bet", [
+          { type: "u64", value: Number(predictionId) },
+          { type: "address", value: publicKey },
+          { type: "u32", value: optionIndex },
+          { type: "u128", value: amount },
         ]);
-        alert("Sign bet transaction:\n" + xdr.slice(0, 40) + "...");
         await fetchPredictions();
         return true;
       } catch (err) {
@@ -104,14 +102,19 @@ export function usePredict() {
         return false;
       }
     },
-    [publicKey, fetchPredictions]
+    [publicKey, submitTx, fetchPredictions]
   );
 
   const resolvePrediction = useCallback(
     async (predictionId: string, winningOption: number): Promise<boolean> => {
+      if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        alert("Only the prediction creator can resolve. Sign in wallet.");
+        await submitTx("resolve_prediction", [
+          { type: "u64", value: Number(predictionId) },
+          { type: "address", value: publicKey },
+          { type: "u32", value: winningOption },
+        ]);
         await fetchPredictions();
         return true;
       } catch (err) {
@@ -119,7 +122,7 @@ export function usePredict() {
         return false;
       }
     },
-    [fetchPredictions]
+    [publicKey, submitTx, fetchPredictions]
   );
 
   const claimWinnings = useCallback(
@@ -127,19 +130,18 @@ export function usePredict() {
       if (!publicKey) { setError("Wallet not connected"); return null; }
       setError(null);
       try {
-        const pred = predictions.find((p) => p.id === predictionId);
-        if (!pred) return null;
-        const pool = pred.totalBets.reduce((a, b) => a + b, 0);
-        const winningTotal = pred.totalBets[pred.winningOption] || 1;
-        const myBetAmount = 0;
-        const winnings = Math.floor((myBetAmount * pool) / winningTotal);
-        return winnings > 0 ? winnings : null;
+        const result = await submitTx("claim_winnings", [
+          { type: "u64", value: Number(predictionId) },
+          { type: "address", value: publicKey },
+        ]);
+        await fetchPredictions();
+        return result ? Number(result) : null;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to claim");
         return null;
       }
     },
-    [publicKey, predictions]
+    [publicKey, submitTx, fetchPredictions]
   );
 
   return {

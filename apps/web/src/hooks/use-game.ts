@@ -2,15 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useWallet } from "@/hooks/use-wallet";
-import {
-  ZKLEASE_CONTRACT_ID,
-  makeAddressScVal,
-  makeU128ScVal,
-  makeU64ScVal,
-  makeBytesScVal,
-  makeU32ScVal,
-  simulateContractCall,
-} from "@/lib/stellar";
+import { simulateContractCall, signAndSubmitTransaction } from "@/lib/contract-call";
 
 export type GameStatus = "waiting" | "committed" | "revealing" | "completed" | "cancelled";
 export type MoveOption = "rock" | "paper" | "scissors";
@@ -111,20 +103,27 @@ export function useGame() {
 
   useEffect(() => { fetchMyGames(); }, [fetchMyGames]);
 
+  const submitTx = useCallback(async (method: string, args: { type: string; value: any }[]) => {
+    if (!publicKey) throw new Error("Wallet not connected");
+    if (!kit) throw new Error("Wallet kit not initialized");
+    const { xdr, result } = await simulateContractCall(method, publicKey, args);
+    await signAndSubmitTransaction(kit, xdr, publicKey);
+    return result;
+  }, [publicKey, kit]);
+
   const createGame = useCallback(
     async (entryFee: number): Promise<string | null> => {
       if (!publicKey) { setError("Wallet not connected"); return null; }
       setIsCreating(true);
       setError(null);
       try {
-        const xdr = await simulateContractCall(publicKey, "create_rps_game", [
-          makeAddressScVal(publicKey),
-          makeAddressScVal(publicKey),
-          makeU128ScVal(entryFee),
+        const result = await submitTx("create_rps_game", [
+          { type: "address", value: publicKey },
+          { type: "address", value: publicKey },
+          { type: "u128", value: entryFee },
         ]);
-        alert("Transaction XDR ready. Sign in wallet:\n" + xdr.slice(0, 40) + "...");
         await fetchGames();
-        return null;
+        return result?.toString() || null;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create game");
         return null;
@@ -132,7 +131,7 @@ export function useGame() {
         setIsCreating(false);
       }
     },
-    [publicKey, fetchGames]
+    [publicKey, submitTx, fetchGames]
   );
 
   const joinGame = useCallback(
@@ -140,11 +139,10 @@ export function useGame() {
       if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        const xdr = await simulateContractCall(publicKey, "join_rps_game", [
-          makeU64ScVal(Number(gameId)),
-          makeAddressScVal(publicKey),
+        await submitTx("join_rps_game", [
+          { type: "u64", value: Number(gameId) },
+          { type: "address", value: publicKey },
         ]);
-        alert("Sign join transaction:\n" + xdr.slice(0, 40) + "...");
         await fetchGames();
         return true;
       } catch (err) {
@@ -152,7 +150,7 @@ export function useGame() {
         return false;
       }
     },
-    [publicKey, fetchGames]
+    [publicKey, submitTx, fetchGames]
   );
 
   const makeMove = useCallback(
@@ -160,16 +158,20 @@ export function useGame() {
       if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
+        const salt = crypto.getRandomValues(new Uint8Array(8));
         const encoder = new TextEncoder();
-        const preimage = new Uint8Array([...new Uint8Array(4), ...encoder.encode(move + Date.now())]);
+        const preimage = new Uint8Array([...salt, ...encoder.encode(move)]);
         const hashBuffer = await crypto.subtle.digest("SHA-256", preimage);
         const commitment = new Uint8Array(hashBuffer);
-        const xdr = await simulateContractCall(publicKey, "commit_move", [
-          makeU64ScVal(Number(gameId)),
-          makeAddressScVal(publicKey),
-          makeBytesScVal(commitment),
+
+        localStorage.setItem(`rps_salt_${gameId}_${publicKey}`,
+          JSON.stringify({ salt: Array.from(salt), move }));
+
+        await submitTx("commit_move", [
+          { type: "u64", value: Number(gameId) },
+          { type: "address", value: publicKey },
+          { type: "bytes", value: Array.from(commitment) },
         ]);
-        alert("Sign commit transaction:\n" + xdr.slice(0, 40) + "...");
         await fetchGames();
         return true;
       } catch (err) {
@@ -177,7 +179,7 @@ export function useGame() {
         return false;
       }
     },
-    [publicKey, fetchGames]
+    [publicKey, submitTx, fetchGames]
   );
 
   const revealMove = useCallback(
@@ -185,13 +187,20 @@ export function useGame() {
       if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        const xdr = await simulateContractCall(publicKey, "reveal_move", [
-          makeU64ScVal(Number(gameId)),
-          makeAddressScVal(publicKey),
-          makeU32ScVal(0),
-          makeBytesScVal(new Uint8Array([0])),
+        const stored = localStorage.getItem(`rps_salt_${gameId}_${publicKey}`);
+        if (!stored) {
+          setError("Move data not found. Did you commit from this device?");
+          return false;
+        }
+        const { salt, move } = JSON.parse(stored);
+        const moveIndex = MOVES.indexOf(move as MoveOption);
+
+        await submitTx("reveal_move", [
+          { type: "u64", value: Number(gameId) },
+          { type: "address", value: publicKey },
+          { type: "u32", value: moveIndex },
+          { type: "bytes", value: salt },
         ]);
-        alert("Sign reveal transaction:\n" + xdr.slice(0, 40) + "...");
         await fetchGames();
         return true;
       } catch (err) {
@@ -199,7 +208,7 @@ export function useGame() {
         return false;
       }
     },
-    [publicKey, fetchGames]
+    [publicKey, submitTx, fetchGames]
   );
 
   const fetchGame = useCallback(
