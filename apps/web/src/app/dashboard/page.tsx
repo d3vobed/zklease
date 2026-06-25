@@ -57,70 +57,49 @@ interface Prediction {
   resolvedAt?: number;
 }
 
-const mockGames: ActiveGame[] = [
-  {
-    id: "1",
-    type: "rps",
-    entryFee: "10",
-    status: "committed",
-    opponent: "GABC…1234",
-    createdAt: Date.now() - 3600000,
-  },
-  {
-    id: "2",
-    type: "rps",
-    entryFee: "25",
-    status: "reveal",
-    opponent: "GDEF…5678",
-    createdAt: Date.now() - 7200000,
-  },
-  {
-    id: "3",
-    type: "prediction",
-    entryFee: "50",
-    status: "waiting",
-    createdAt: Date.now() - 1800000,
-  },
-];
-
-const mockPredictions: Prediction[] = [
-  {
-    id: "p1",
-    market: "BTC > $100K by June 2026",
-    amount: "25",
-    position: "Yes",
-    status: "won",
-    outcome: "Yes",
-    payout: "47.50",
-    createdAt: Date.now() - 86400000 * 3,
-    resolvedAt: Date.now() - 3600000,
-  },
-  {
-    id: "p2",
-    market: "Stellar XLM > $1 by July 2026",
-    amount: "50",
-    position: "No",
-    status: "active",
-    createdAt: Date.now() - 86400000 * 7,
-  },
-  {
-    id: "p3",
-    market: "Fed rate cut > 50bps in June",
-    amount: "10",
-    position: "Yes",
-    status: "lost",
-    outcome: "No",
-    createdAt: Date.now() - 86400000 * 14,
-    resolvedAt: Date.now() - 86400000 * 2,
-  },
-];
+interface ChainGame {
+  id: string;
+  creator: string;
+  opponent: string | null;
+  entryFee: number;
+  state: string;
+  winner: string | null;
+  createdAt: number;
+}
 
 export default function DashboardPage() {
   const { publicKey, isConnected, connect, isConnecting } = useWallet();
   const [credential, setCredential] = useState<Credential | null>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [chainGames, setChainGames] = useState<any[]>([]);
+  const [chainPredictions, setChainPredictions] = useState<any[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/games").then((r) => r.json().then((d) => setChainGames(d.games || [])).catch(() => {}));
+    fetch("/api/predictions").then((r) => r.json().then((d) => setChainPredictions(d.predictions || [])).catch(() => {}));
+  }, []);
+
+  const activeGames: ActiveGame[] = chainGames.map((g: ChainGame) => ({
+    id: g.id,
+    type: "rps" as const,
+    entryFee: String(g.entryFee),
+    status: g.state === "Completed" ? "completed" as const : g.state === "AwaitingReveal" ? "committed" as const : "waiting" as const,
+    opponent: g.opponent ? g.opponent.slice(0, 4) + "…" + g.opponent.slice(-4) : undefined,
+    createdAt: g.createdAt,
+  }));
+
+  const myPredictions: Prediction[] = chainPredictions.map((p: any) => ({
+    id: p.id,
+    market: p.question || "",
+    amount: "0",
+    position: "",
+    status: p.resolved ? ("won" as const) : ("active" as const),
+    outcome: p.resolved ? p.options[p.winningOption] || "" : "",
+    payout: "",
+    createdAt: p.resolutionTime,
+  }));
 
   const handleCopy = useCallback(async () => {
     if (!publicKey) return;
@@ -182,11 +161,11 @@ export default function DashboardPage() {
   }
 
   const totalProofs = credential?.txHashes?.length ?? 0;
-  const gamesWon = mockGames.filter((g) => g.outcome === "win").length;
-  const gamesPlayed = mockGames.length;
+  const gamesPlayed = activeGames.length;
+  const gamesWon = chainGames.filter((g: any) => g.state === "Completed" && g.winner).length;
   const winRate = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
-  const totalPredictions = mockPredictions.length;
-  const totalWinnings = mockPredictions
+  const totalPredictions = myPredictions.length;
+  const totalWinnings = myPredictions
     .filter((p) => p.status === "won" || p.status === "claimed")
     .reduce((sum, p) => sum + parseFloat(p.payout || "0"), 0);
 
@@ -371,7 +350,7 @@ export default function DashboardPage() {
             <Gamepad2 className="h-5 w-5 text-purple-400" />
             Active Games
           </h2>
-          {mockGames.length === 0 ? (
+          {activeGames.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/10 to-violet-500/10">
@@ -391,7 +370,7 @@ export default function DashboardPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {mockGames.map((game) => {
+              {activeGames.map((game) => {
                 const Icon = game.type === "rps" ? Swords : TrendingUp;
                 return (
                   <Card key={game.id} className="game-card-hover">
@@ -456,7 +435,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-5 w-5 text-amber-400" />
             Prediction History
           </h2>
-          {mockPredictions.length === 0 ? (
+          {myPredictions.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10">
@@ -501,7 +480,7 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mockPredictions.map((prediction) => (
+                      {myPredictions.map((prediction) => (
                         <tr
                           key={prediction.id}
                           className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
