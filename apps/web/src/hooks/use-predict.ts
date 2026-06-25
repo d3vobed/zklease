@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWallet } from "@/hooks/use-wallet";
-
-export interface Bet {
-  predictor: string;
-  optionIndex: number;
-  amount: number;
-  claimed: boolean;
-}
+import {
+  makeAddressScVal,
+  makeSymbolScVal,
+  makeVecScVal,
+  makeU64ScVal,
+  makeU32ScVal,
+  makeU128ScVal,
+  simulateContractCall,
+} from "@/lib/stellar";
 
 export interface Prediction {
   id: string;
@@ -18,49 +20,28 @@ export interface Prediction {
   resolutionTime: number;
   resolved: boolean;
   winningOption: number;
-  bets: Bet[];
+  bets: any[];
   myBet?: number;
 }
 
-const MOCK_PREDICTIONS: Prediction[] = [
-  {
-    id: "pred-1",
-    question: "Will XLM price exceed $0.50 by June 30?",
-    options: ["Yes", "No"],
-    totalBets: [850, 420],
-    resolutionTime: Date.now() + 86400000 * 3,
-    resolved: false,
-    winningOption: 0,
+function mapPrediction(raw: any): Prediction {
+  return {
+    id: raw.id?.toString() || "",
+    question: typeof raw.question === "string" ? raw.question : String(raw.question ?? ""),
+    options: Array.isArray(raw.options) ? raw.options.map(String) : [],
+    totalBets: Array.isArray(raw.total_bets)
+      ? raw.total_bets.map((v: any) => Number(v ?? 0))
+      : [],
+    resolutionTime: raw.resolution_time ? Number(raw.resolution_time) * 1000 : Date.now(),
+    resolved: Boolean(raw.resolved ?? false),
+    winningOption: Number(raw.winning_option ?? 0),
     bets: [],
-  },
-  {
-    id: "pred-2",
-    question: "Will Stellar Protocol 27 pass in July?",
-    options: ["Yes, before July 15", "Yes, after July 15", "No"],
-    totalBets: [1200, 600, 200],
-    resolutionTime: Date.now() + 86400000 * 7,
-    resolved: false,
-    winningOption: 0,
-    bets: [],
-  },
-  {
-    id: "pred-3",
-    question: "ZKLease wins the Stellar Hackathon?",
-    options: ["Grand Prize", "Runner Up", "No"],
-    totalBets: [500, 300, 100],
-    resolutionTime: Date.now() + 86400000 * 5,
-    resolved: true,
-    winningOption: 0,
-    bets: [],
-    myBet: 0,
-  },
-];
-
-let predCounter = 3;
+  };
+}
 
 export function usePredict() {
   const { publicKey } = useWallet();
-  const [predictions, setPredictions] = useState<Prediction[]>(MOCK_PREDICTIONS);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +49,11 @@ export function usePredict() {
     setIsLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 300));
+      const res = await fetch("/api/predictions");
+      if (res.ok) {
+        const data = await res.json();
+        setPredictions((data.predictions || []).map(mapPrediction));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch predictions");
     } finally {
@@ -76,119 +61,81 @@ export function usePredict() {
     }
   }, []);
 
+  useEffect(() => { fetchPredictions(); }, [fetchPredictions]);
+
   const createPrediction = useCallback(
     async (question: string, options: string[], resolutionTime: number): Promise<string | null> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return null;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return null; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 500));
-        predCounter++;
-        const newPred: Prediction = {
-          id: `pred-${predCounter}`,
-          question,
-          options,
-          totalBets: options.map(() => 0),
-          resolutionTime,
-          resolved: false,
-          winningOption: 0,
-          bets: [],
-        };
-        setPredictions((prev) => [newPred, ...prev]);
-        return newPred.id;
+        const xdr = await simulateContractCall(publicKey, "create_prediction", [
+          makeAddressScVal(publicKey),
+          makeSymbolScVal(question),
+          makeVecScVal(options.map((o) => makeSymbolScVal(o))),
+          makeU64ScVal(Math.floor(resolutionTime / 1000)),
+        ]);
+        alert("Sign in wallet to create prediction:\n" + xdr.slice(0, 40) + "...");
+        await fetchPredictions();
+        return null;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create prediction");
         return null;
       }
     },
-    [publicKey]
+    [publicKey, fetchPredictions]
   );
 
   const placeBet = useCallback(
     async (predictionId: string, optionIndex: number, amount: number): Promise<boolean> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return false;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 400));
-        let placed = false;
-        setPredictions((prev) =>
-          prev.map((p) => {
-            if (p.id !== predictionId || p.resolved) return p;
-            placed = true;
-            const newBets = [...p.totalBets];
-            newBets[optionIndex] = (newBets[optionIndex] || 0) + amount;
-            return {
-              ...p,
-              totalBets: newBets,
-              bets: [
-                ...p.bets,
-                {
-                  predictor: publicKey,
-                  optionIndex,
-                  amount,
-                  claimed: false,
-                },
-              ],
-              myBet: optionIndex,
-            };
-          })
-        );
-        return placed;
+        const xdr = await simulateContractCall(publicKey, "place_bet", [
+          makeU64ScVal(Number(predictionId)),
+          makeAddressScVal(publicKey),
+          makeU32ScVal(optionIndex),
+          makeU128ScVal(amount),
+        ]);
+        alert("Sign bet transaction:\n" + xdr.slice(0, 40) + "...");
+        await fetchPredictions();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to place bet");
         return false;
       }
     },
-    [publicKey]
+    [publicKey, fetchPredictions]
   );
 
   const resolvePrediction = useCallback(
     async (predictionId: string, winningOption: number): Promise<boolean> => {
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 300));
-        let resolved = false;
-        setPredictions((prev) =>
-          prev.map((p) => {
-            if (p.id !== predictionId || p.resolved) return p;
-            resolved = true;
-            return { ...p, resolved: true, winningOption };
-          })
-        );
-        return resolved;
+        alert("Only the prediction creator can resolve. Sign in wallet.");
+        await fetchPredictions();
+        return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to resolve prediction");
+        setError(err instanceof Error ? err.message : "Failed to resolve");
         return false;
       }
     },
-    []
+    [fetchPredictions]
   );
 
   const claimWinnings = useCallback(
     async (predictionId: string): Promise<number | null> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return null;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return null; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 300));
         const pred = predictions.find((p) => p.id === predictionId);
-        if (!pred || !pred.resolved) return null;
-        const winningTotal = pred.totalBets[pred.winningOption] || 0;
+        if (!pred) return null;
         const pool = pred.totalBets.reduce((a, b) => a + b, 0);
+        const winningTotal = pred.totalBets[pred.winningOption] || 1;
         const myBetAmount = 0;
-        const winnings = pool > 0 && winningTotal > 0
-          ? Math.floor((myBetAmount * pool) / winningTotal)
-          : 0;
-        return winnings;
+        const winnings = Math.floor((myBetAmount * pool) / winningTotal);
+        return winnings > 0 ? winnings : null;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to claim winnings");
+        setError(err instanceof Error ? err.message : "Failed to claim");
         return null;
       }
     },
@@ -196,14 +143,7 @@ export function usePredict() {
   );
 
   return {
-    predictions,
-    isLoading,
-    error,
-    fetchPredictions,
-    createPrediction,
-    placeBet,
-    resolvePrediction,
-    claimWinnings,
-    setError,
+    predictions, isLoading, error,
+    fetchPredictions, createPrediction, placeBet, resolvePrediction, claimWinnings, setError,
   };
 }

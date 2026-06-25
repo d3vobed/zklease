@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@/hooks/use-wallet";
+import { usePredict, type Prediction } from "@/hooks/use-predict";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,57 +24,8 @@ import {
   Plus,
   Clock,
   CheckCircle2,
-  ExternalLink,
-  AlertCircle,
   Wallet,
 } from "lucide-react";
-import Link from "next/link";
-
-interface Prediction {
-  id: string;
-  question: string;
-  options: string[];
-  bets: number[];
-  totalBets: number;
-  resolutionTime: number;
-  resolved: boolean;
-  winningOption: number;
-  myBet?: number;
-}
-
-const MOCK_PREDICTIONS: Prediction[] = [
-  {
-    id: "pred-1",
-    question: "Will XLM price exceed $0.50 by June 30?",
-    options: ["Yes", "No"],
-    bets: [850, 420],
-    totalBets: 1270,
-    resolutionTime: Date.now() + 86400000 * 3,
-    resolved: false,
-    winningOption: 0,
-  },
-  {
-    id: "pred-2",
-    question: "Will Stellar Protocol 27 pass in July?",
-    options: ["Yes, before July 15", "Yes, after July 15", "No"],
-    bets: [1200, 600, 200],
-    totalBets: 2000,
-    resolutionTime: Date.now() + 86400000 * 7,
-    resolved: false,
-    winningOption: 0,
-  },
-  {
-    id: "pred-3",
-    question: "ZKLease wins the Stellar Hackathon?",
-    options: ["Grand Prize", "Runner Up", "No"],
-    bets: [500, 300, 100],
-    totalBets: 900,
-    resolutionTime: Date.now() + 86400000 * 5,
-    resolved: true,
-    winningOption: 0,
-    myBet: 0,
-  },
-];
 
 function formatTimeLeft(ms: number): string {
   if (ms <= 0) return "Ended";
@@ -85,20 +37,36 @@ function formatTimeLeft(ms: number): string {
 
 export default function PredictPage() {
   const { isConnected, connect, isConnecting, publicKey } = useWallet();
-  const [predictions] = useState<Prediction[]>(MOCK_PREDICTIONS);
+  const {
+    predictions, isLoading, fetchPredictions,
+    createPrediction, placeBet,
+  } = usePredict();
   const [creating, setCreating] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
   const [newOptions, setNewOptions] = useState("");
   const [betAmounts, setBetAmounts] = useState<Record<string, string>>({});
+  const [isPlacingBet, setIsPlacingBet] = useState<Record<string, boolean>>({});
 
-  const handleCreatePrediction = () => {
+  useEffect(() => { fetchPredictions(); }, [fetchPredictions]);
+
+  const handleCreatePrediction = async () => {
+    if (!newQuestion || !newOptions) return;
+    const opts = newOptions.split(",").map((o) => o.trim()).filter(Boolean);
+    if (opts.length < 2) return;
+    await createPrediction(newQuestion, opts, Date.now() + 86400000 * 7);
     setCreating(false);
     setNewQuestion("");
     setNewOptions("");
   };
 
-  const handlePlaceBet = (predictionId: string, optionIndex: number) => {
-    console.log("Placing bet on", predictionId, "option", optionIndex);
+  const handlePlaceBet = async (predictionId: string, optionIndex: number) => {
+    const key = `${predictionId}-${optionIndex}`;
+    const amount = parseFloat(betAmounts[key]);
+    if (!amount || amount <= 0) return;
+    setIsPlacingBet((prev) => ({ ...prev, [key]: true }));
+    await placeBet(predictionId, optionIndex, amount);
+    setIsPlacingBet((prev) => ({ ...prev, [key]: false }));
+    setBetAmounts((prev) => ({ ...prev, [key]: "" }));
   };
 
   if (!isConnected) {
@@ -182,7 +150,7 @@ export default function PredictPage() {
               <TrendingUp className="h-6 w-6 text-amber-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activePredictions.length}</p>
+              <p className="text-2xl font-bold">{isLoading ? "—" : activePredictions.length}</p>
               <p className="text-xs text-muted-foreground">Active Markets</p>
             </div>
           </CardContent>
@@ -211,145 +179,145 @@ export default function PredictPage() {
         </Card>
       </div>
 
-      <h2 className="mb-4 text-xl font-semibold">Active Markets</h2>
-      {activePredictions.length === 0 ? (
-        <Card className="mb-8">
-          <CardContent className="py-12 text-center">
-            <TrendingUp className="mx-auto mb-4 h-12 w-12 text-muted-foreground/30" />
-            <p className="text-lg font-medium">No Active Markets</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Be the first to create a prediction market.
-            </p>
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
       ) : (
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          {activePredictions.map((pred) => {
-            const maxBet = Math.max(...pred.bets, 1);
-            return (
-              <Card key={pred.id} className="relative overflow-hidden">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">
-                      {pred.question}
-                    </CardTitle>
-                    <Badge variant="secondary" className="shrink-0">
-                      <Clock className="mr-1 h-3 w-3" />
-                      {formatTimeLeft(pred.resolutionTime - Date.now())}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {pred.options.map((option, idx) => {
-                    const betAmount = pred.bets[idx] || 0;
-                    const pct = pred.totalBets > 0 ? (betAmount / pred.totalBets) * 100 : 0;
-                    const inputKey = `${pred.id}-${idx}`;
-                    return (
-                      <div key={option} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>{option}</span>
-                          <span className="text-muted-foreground">
-                            {betAmount} USDC ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="prediction-bar">
-                          <div
-                            className="prediction-bar-fill"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Amount"
-                            value={betAmounts[inputKey] || ""}
-                            onChange={(e) =>
-                              setBetAmounts((prev) => ({
-                                ...prev,
-                                [inputKey]: e.target.value,
-                              }))
-                            }
-                            className="h-8 text-xs"
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePlaceBet(pred.id, idx)}
-                            disabled={!betAmounts[inputKey]}
-                          >
-                            Bet
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {resolvedPredictions.length > 0 && (
         <>
-          <h2 className="mb-4 text-xl font-semibold">Resolved</h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {resolvedPredictions.map((pred) => (
-              <Card key={pred.id} className="relative overflow-hidden opacity-80">
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">{pred.question}</CardTitle>
-                    <Badge variant="success">
-                      <Trophy className="mr-1 h-3 w-3" />
-                      {pred.options[pred.winningOption]}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {pred.options.map((option, idx) => {
-                    const betAmount = pred.bets[idx] || 0;
-                    const pct = pred.totalBets > 0 ? (betAmount / pred.totalBets) * 100 : 0;
-                    const won = idx === pred.winningOption;
-                    return (
-                      <div
-                        key={option}
-                        className={`mb-2 rounded-lg p-3 ${
-                          won
-                            ? "bg-emerald-500/10 border border-emerald-500/20"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            {option}
-                            {won && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {betAmount} USDC ({pct.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="prediction-bar mt-1">
-                          <div
-                            className={`prediction-bar-fill ${
-                              won ? "bg-emerald-500" : ""
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
+          <h2 className="mb-4 text-xl font-semibold">Active Markets</h2>
+          {activePredictions.length === 0 ? (
+            <Card className="mb-8">
+              <CardContent className="py-12 text-center">
+                <TrendingUp className="mx-auto mb-4 h-12 w-12 text-muted-foreground/30" />
+                <p className="text-lg font-medium">No Active Markets</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Be the first to create a prediction market.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="mb-8 grid gap-6 md:grid-cols-2">
+              {activePredictions.map((pred) => {
+                const maxBet = Math.max(...pred.totalBets, 1);
+                const pool = pred.totalBets.reduce((a, b) => a + b, 0);
+                return (
+                  <Card key={pred.id} className="relative overflow-hidden">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base">{pred.question}</CardTitle>
+                        <Badge variant="secondary" className="shrink-0">
+                          <Clock className="mr-1 h-3 w-3" />
+                          {formatTimeLeft(pred.resolutionTime - Date.now())}
+                        </Badge>
                       </div>
-                    );
-                  })}
-                  {pred.myBet !== undefined && (
-                    <Button size="sm" className="mt-3 w-full">
-                      <Coins className="mr-2 h-4 w-4" />
-                      Claim Winnings
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {pred.options.map((option, idx) => {
+                        const betAmount = pred.totalBets[idx] || 0;
+                        const pct = pool > 0 ? (betAmount / pool) * 100 : 0;
+                        const inputKey = `${pred.id}-${idx}`;
+                        return (
+                          <div key={option} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>{option}</span>
+                              <span className="text-muted-foreground">
+                                {betAmount} USDC ({pct.toFixed(0)}%)
+                              </span>
+                            </div>
+                            <div className="prediction-bar">
+                              <div className="prediction-bar-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                placeholder="Amount"
+                                value={betAmounts[inputKey] || ""}
+                                onChange={(e) =>
+                                  setBetAmounts((prev) => ({ ...prev, [inputKey]: e.target.value }))
+                                }
+                                className="h-8 text-xs"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handlePlaceBet(pred.id, idx)}
+                                disabled={!betAmounts[inputKey] || isPlacingBet[inputKey]}
+                              >
+                                {isPlacingBet[inputKey] ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "Bet"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {resolvedPredictions.length > 0 && (
+            <>
+              <h2 className="mb-4 text-xl font-semibold">Resolved</h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {resolvedPredictions.map((pred) => {
+                  const pool = pred.totalBets.reduce((a, b) => a + b, 0);
+                  return (
+                    <Card key={pred.id} className="relative overflow-hidden opacity-80">
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="text-base">{pred.question}</CardTitle>
+                          <Badge variant="success">
+                            <Trophy className="mr-1 h-3 w-3" />
+                            {pred.options[pred.winningOption] || "Won"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {pred.options.map((option, idx) => {
+                          const betAmount = pred.totalBets[idx] || 0;
+                          const pct = pool > 0 ? (betAmount / pool) * 100 : 0;
+                          const won = idx === pred.winningOption;
+                          return (
+                            <div
+                              key={option}
+                              className={`mb-2 rounded-lg p-3 ${
+                                won ? "bg-emerald-500/10 border border-emerald-500/20" : ""
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="flex items-center gap-2">
+                                  {option}
+                                  {won && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {betAmount} USDC ({pct.toFixed(0)}%)
+                                </span>
+                              </div>
+                              <div className="prediction-bar mt-1">
+                                <div
+                                  className={`prediction-bar-fill ${won ? "bg-emerald-500" : ""}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

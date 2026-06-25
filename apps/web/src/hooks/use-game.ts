@@ -1,7 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWallet } from "@/hooks/use-wallet";
+import {
+  ZKLEASE_CONTRACT_ID,
+  makeAddressScVal,
+  makeU128ScVal,
+  makeU64ScVal,
+  makeBytesScVal,
+  makeU32ScVal,
+  simulateContractCall,
+} from "@/lib/stellar";
 
 export type GameStatus = "waiting" | "committed" | "revealing" | "completed" | "cancelled";
 export type MoveOption = "rock" | "paper" | "scissors";
@@ -32,30 +41,35 @@ function determineWinner(move1: MoveOption, move2: MoveOption): number {
     (move1 === "rock" && move2 === "scissors") ||
     (move1 === "paper" && move2 === "rock") ||
     (move1 === "scissors" && move2 === "paper")
-  ) {
-    return 0;
-  }
+  ) return 0;
   return 1;
 }
 
-let gameCounter = 3;
+function mapStatus(s: string): GameStatus {
+  switch (s) {
+    case "Waiting": return "waiting";
+    case "AwaitingReveal": return "committed";
+    case "Revealed": return "revealing";
+    case "Completed": return "completed";
+    default: return "waiting";
+  }
+}
 
-function createMockGame(creator: string, entryFee: number): Game {
-  gameCounter++;
+function mapGame(raw: any): Game {
   return {
-    id: `game_${String(gameCounter).padStart(3, "0")}`,
-    creator,
-    entryFee,
-    status: "waiting",
-    players: [{ address: creator, committed: false, revealed: false }],
-    createdAt: Date.now(),
+    id: raw.id?.toString() || "",
+    creator: raw.creator || "",
+    opponent: raw.opponent || undefined,
+    entryFee: Number(raw.entryFee ?? raw.entry_fee ?? 0),
+    status: mapStatus(raw.state || raw.status || "Waiting"),
+    players: [],
+    winner: raw.winner || undefined,
+    createdAt: raw.createdAt || raw.created_at ? Number(raw.created_at) * 1000 : Date.now(),
   };
 }
 
-const API_BASE = typeof window !== "undefined" ? "" : "";
-
 export function useGame() {
-  const { publicKey } = useWallet();
+  const { publicKey, kit } = useWallet();
   const [games, setGames] = useState<Game[]>([]);
   const [myGames, setMyGames] = useState<Game[]>([]);
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
@@ -67,12 +81,11 @@ export function useGame() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/games`).catch(() => null);
-      if (res?.ok) {
+      const res = await fetch("/api/games");
+      if (res.ok) {
         const data = await res.json();
-        setGames(data.games || []);
-      } else {
-        await new Promise((r) => setTimeout(r, 400));
+        const mapped = (data.games || []).map(mapGame);
+        setGames(mapped);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch games");
@@ -84,7 +97,6 @@ export function useGame() {
   const fetchMyGames = useCallback(async () => {
     if (!publicKey) return;
     setIsLoading(true);
-    setError(null);
     try {
       const userGames = games.filter(
         (g) => g.creator === publicKey || g.opponent === publicKey
@@ -97,19 +109,22 @@ export function useGame() {
     }
   }, [publicKey, games]);
 
+  useEffect(() => { fetchMyGames(); }, [fetchMyGames]);
+
   const createGame = useCallback(
     async (entryFee: number): Promise<string | null> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return null;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return null; }
       setIsCreating(true);
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 600));
-        const newGame = createMockGame(publicKey, entryFee);
-        setGames((prev) => [...prev, newGame]);
-        return newGame.id;
+        const xdr = await simulateContractCall(publicKey, "create_rps_game", [
+          makeAddressScVal(publicKey),
+          makeAddressScVal(publicKey),
+          makeU128ScVal(entryFee),
+        ]);
+        alert("Transaction XDR ready. Sign in wallet:\n" + xdr.slice(0, 40) + "...");
+        await fetchGames();
+        return null;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create game");
         return null;
@@ -117,156 +132,81 @@ export function useGame() {
         setIsCreating(false);
       }
     },
-    [publicKey]
+    [publicKey, fetchGames]
   );
 
   const joinGame = useCallback(
     async (gameId: string): Promise<boolean> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return false;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 500));
-        let joined = false;
-        setGames((prev) =>
-          prev.map((g) => {
-            if (g.id === gameId && g.players.length < 2) {
-              joined = true;
-              return {
-                ...g,
-                opponent: publicKey,
-                players: [
-                  ...g.players,
-                  { address: publicKey, committed: false, revealed: false },
-                ],
-              };
-            }
-            return g;
-          })
-        );
-        return joined;
+        const xdr = await simulateContractCall(publicKey, "join_rps_game", [
+          makeU64ScVal(Number(gameId)),
+          makeAddressScVal(publicKey),
+        ]);
+        alert("Sign join transaction:\n" + xdr.slice(0, 40) + "...");
+        await fetchGames();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to join game");
         return false;
       }
     },
-    [publicKey]
+    [publicKey, fetchGames]
   );
 
   const makeMove = useCallback(
     async (gameId: string, move: MoveOption): Promise<boolean> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return false;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 400));
-        let committed = false;
-        setGames((prev) =>
-          prev.map((g) => {
-            if (g.id !== gameId) return g;
-            const players = g.players.map((p) => {
-              if (p.address === publicKey && !p.committed) {
-                committed = true;
-                return { ...p, move, committed: true };
-              }
-              return p;
-            });
-            const allCommitted = players.every((p) => p.committed);
-            return {
-              ...g,
-              players,
-              status: allCommitted ? "committed" : g.status,
-            };
-          })
-        );
-
-        if (committed) {
-          setGames((prev) => {
-            const updated = prev.find((g) => g.id === gameId);
-            if (updated) setCurrentGame(updated);
-            return prev;
-          });
-        }
-        return committed;
+        const encoder = new TextEncoder();
+        const preimage = new Uint8Array([...new Uint8Array(4), ...encoder.encode(move + Date.now())]);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", preimage);
+        const commitment = new Uint8Array(hashBuffer);
+        const xdr = await simulateContractCall(publicKey, "commit_move", [
+          makeU64ScVal(Number(gameId)),
+          makeAddressScVal(publicKey),
+          makeBytesScVal(commitment),
+        ]);
+        alert("Sign commit transaction:\n" + xdr.slice(0, 40) + "...");
+        await fetchGames();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to commit move");
         return false;
       }
     },
-    [publicKey]
+    [publicKey, fetchGames]
   );
 
   const revealMove = useCallback(
     async (gameId: string): Promise<boolean> => {
-      if (!publicKey) {
-        setError("Wallet not connected");
-        return false;
-      }
+      if (!publicKey) { setError("Wallet not connected"); return false; }
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 400));
-        let revealed = false;
-        setGames((prev) =>
-          prev.map((g) => {
-            if (g.id !== gameId) return g;
-            const players = g.players.map((p) => {
-              if (p.address === publicKey && p.committed && !p.revealed) {
-                revealed = true;
-                return { ...p, revealed: true };
-              }
-              return p;
-            });
-            const allRevealed = players.every((p) => p.revealed);
-            if (allRevealed && revealed) {
-              const p1 = players[0];
-              const p2 = players[1];
-              if (p1.move && p2.move) {
-                const result = determineWinner(p1.move, p2.move);
-                let winner: string | undefined;
-                if (result === 0) winner = p1.address;
-                else if (result === 1) winner = p2.address;
-                return {
-                  ...g,
-                  players,
-                  status: "completed",
-                  winner,
-                };
-              }
-            }
-            const anyRevealed = players.some((p) => p.revealed);
-            return {
-              ...g,
-              players,
-              status: anyRevealed ? "revealing" : g.status,
-            };
-          })
-        );
-
-        if (revealed) {
-          setGames((prev) => {
-            const updated = prev.find((g) => g.id === gameId);
-            if (updated) setCurrentGame(updated);
-            return prev;
-          });
-        }
-        return revealed;
+        const xdr = await simulateContractCall(publicKey, "reveal_move", [
+          makeU64ScVal(Number(gameId)),
+          makeAddressScVal(publicKey),
+          makeU32ScVal(0),
+          makeBytesScVal(new Uint8Array([0])),
+        ]);
+        alert("Sign reveal transaction:\n" + xdr.slice(0, 40) + "...");
+        await fetchGames();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to reveal move");
         return false;
       }
     },
-    [publicKey]
+    [publicKey, fetchGames]
   );
 
   const fetchGame = useCallback(
     async (gameId: string) => {
       setError(null);
       try {
-        await new Promise((r) => setTimeout(r, 200));
+        if (games.length === 0) await fetchGames();
         const game = games.find((g) => g.id === gameId) || null;
         setCurrentGame(game);
         return game;
@@ -275,38 +215,21 @@ export function useGame() {
         return null;
       }
     },
-    [games]
+    [games, fetchGames]
   );
 
-  const resetCurrentGame = useCallback(() => {
-    setCurrentGame(null);
-  }, []);
+  const resetCurrentGame = useCallback(() => setCurrentGame(null), []);
 
-  const winRate =
-    myGames.length > 0
-      ? Math.round(
-          (myGames.filter((g) => g.winner === publicKey).length /
-            myGames.filter((g) => g.status === "completed").length) *
-            100
-        )
-      : 0;
+  const winRate = myGames.length > 0
+    ? Math.round(
+        (myGames.filter((g) => g.winner === publicKey).length /
+          Math.max(myGames.filter((g) => g.status === "completed").length, 1)) * 100
+      )
+    : 0;
 
   return {
-    games,
-    myGames,
-    currentGame,
-    isLoading,
-    isCreating,
-    error,
-    winRate,
-    fetchGames,
-    fetchMyGames,
-    createGame,
-    joinGame,
-    makeMove,
-    revealMove,
-    fetchGame,
-    resetCurrentGame,
-    setError,
+    games, myGames, currentGame, isLoading, isCreating, error, winRate,
+    fetchGames, fetchMyGames, createGame, joinGame, makeMove, revealMove,
+    fetchGame, resetCurrentGame, setError,
   };
 }

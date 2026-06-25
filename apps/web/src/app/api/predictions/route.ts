@@ -1,38 +1,53 @@
 import { NextResponse } from "next/server";
+import {
+  Contract,
+  SorobanRpc,
+  TransactionBuilder,
+  BASE_FEE,
+  Networks,
+  scValToNative,
+} from "@stellar/stellar-sdk";
+
+const RPC_URL = "https://soroban-testnet.stellar.org";
+const CONTRACT_ID = "CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG";
+const NETWORK = Networks.TESTNET;
+const SOURCE = "GDIVMD5PJ4GCANFUJMOWKLDDNITY4DY63IF4VAHEEEYK7KAIAOBAWZBF";
+
+const server = new SorobanRpc.Server(RPC_URL, { allowHttp: true });
+const contract = new Contract(CONTRACT_ID);
+
+async function simulateCall(method: string) {
+  const account = await server.getAccount(SOURCE);
+  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK })
+    .addOperation(contract.call(method))
+    .setTimeout(30)
+    .build();
+  const result = await server.simulateTransaction(tx);
+  if ("error" in result) throw new Error(String(result.error));
+  return result;
+}
+
+function toPrediction(raw: any) {
+  return {
+    id: String(raw.id ?? ""),
+    question: String(raw.question ?? ""),
+    options: Array.isArray(raw.options) ? raw.options.map(String) : [],
+    totalBets: Array.isArray(raw.total_bets) ? raw.total_bets.map((v: any) => Number(v ?? 0)) : [],
+    resolutionTime: Number(raw.resolution_time ?? 0) * 1000,
+    resolved: Boolean(raw.resolved ?? false),
+    winningOption: Number(raw.winning_option ?? 0),
+  };
+}
 
 export async function GET() {
-  const predictions = [
-    {
-      id: "pred-1",
-      question: "Will XLM price exceed $0.50 by June 30?",
-      options: ["Yes", "No"],
-      totalBets: [850, 420],
-      resolutionTime: Date.now() + 86400000 * 3,
-      resolved: false,
-      winningOption: 0,
-      bets: [],
-    },
-    {
-      id: "pred-2",
-      question: "Will Stellar Protocol 27 pass in July?",
-      options: ["Yes, before July 15", "Yes, after July 15", "No"],
-      totalBets: [1200, 600, 200],
-      resolutionTime: Date.now() + 86400000 * 7,
-      resolved: false,
-      winningOption: 0,
-      bets: [],
-    },
-    {
-      id: "pred-3",
-      question: "ZKLease wins the Stellar Hackathon?",
-      options: ["Grand Prize", "Runner Up", "No"],
-      totalBets: [500, 300, 100],
-      resolutionTime: Date.now() + 86400000 * 5,
-      resolved: true,
-      winningOption: 0,
-      bets: [],
-    },
-  ];
-
-  return NextResponse.json({ predictions });
+  try {
+    const sim = await simulateCall("get_all_predictions");
+    const retval = (sim as any).result?.retval;
+    if (!retval) return NextResponse.json({ predictions: [] });
+    const native = scValToNative(retval);
+    const predictions = Array.isArray(native) ? native.map(toPrediction) : [];
+    return NextResponse.json({ predictions });
+  } catch {
+    return NextResponse.json({ predictions: [] });
+  }
 }
