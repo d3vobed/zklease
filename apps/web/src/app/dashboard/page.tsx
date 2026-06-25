@@ -275,6 +275,19 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!publicKey) return;
+                const res = await fetch(`/api/faucet?address=${publicKey}`);
+                const data = await res.json();
+                if (data.success) alert("Account funded! 10,000 XLM added.");
+                else alert("Funding failed: " + (data.error || "unknown"));
+              }}
+            >
+              <Coins className="mr-2 h-4 w-4" />
+              Fund Account
+            </Button>
             <Button asChild variant="outline">
               <a
                 href={`https://stellar.expert/explorer/testnet/account/${publicKey}`}

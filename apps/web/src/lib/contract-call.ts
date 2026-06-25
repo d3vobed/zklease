@@ -1,4 +1,4 @@
-import { STELLAR_RPC_URL, STELLAR_NETWORK_PASSPHRASE } from "./stellar-constants";
+import { STELLAR_RPC_URL, STELLAR_NETWORK_PASSPHRASE, ZKLEASE_CONTRACT_ID } from "./stellar-constants";
 
 export interface ArgSpec {
   type: string;
@@ -51,3 +51,13 @@ export async function signAndSubmitTransaction(
   if (data.error) throw new Error(data.error.message || "Submission failed");
   return data.result?.hash || data.result?.id || "";
 }
+
+export async function fundAccount(publicKey: string): Promise<boolean> {
+  const res = await fetch(`/api/faucet?address=${publicKey}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Funding failed");
+  return true;
+}
+
+export { ZKLEASE_CONTRACT_ID };
+

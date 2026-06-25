@@ -29,6 +29,7 @@ import {
   AlertCircle,
   ArrowRight,
   Dices,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ export default function PlayPage() {
     joinGame,
     isCreating,
     winRate,
+    setError,
   } = useGame();
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
@@ -255,14 +257,39 @@ export default function PlayPage() {
         <div className="relative mb-6 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto text-red-400 hover:text-red-300"
-            onClick={() => fetchGames()}
-          >
-            Retry
-          </Button>
+          {error.includes("fund") || error.includes("Friendbot") ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto text-red-400 hover:text-red-300"
+              onClick={async () => {
+                if (!publicKey) return;
+                try {
+                  const res = await fetch(`/api/faucet?address=${publicKey}`);
+                  const data = await res.json();
+                  if (data.success) {
+                    setError(null);
+                    fetchGames();
+                  } else {
+                    setError(data.error || "Funding failed");
+                  }
+                } catch {
+                  setError("Failed to fund account");
+                }
+              }}
+            >
+              Fund Account
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto text-red-400 hover:text-red-300"
+              onClick={() => fetchGames()}
+            >
+              Retry
+            </Button>
+          )}
         </div>
       )}
 
@@ -271,7 +298,7 @@ export default function PlayPage() {
           <Dices className="h-5 w-5 text-amber-400" />
           Other Games
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link href="/play/dice">
             <Card className="cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-red-500/5 transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10">
               <CardContent className="flex items-center gap-4 p-5">
@@ -282,6 +309,22 @@ export default function PlayPage() {
                   <p className="font-semibold">Dice Roll</p>
                   <p className="text-sm text-muted-foreground">
                     Guess the number and win 5x your bet
+                  </p>
+                </div>
+                <ArrowRight className="ml-auto h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/play/blackjack">
+            <Card className="cursor-pointer border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-green-500/5 transition-all hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-500/20">
+                  <Sparkles className="h-6 w-6 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-semibold">Blackjack</p>
+                  <p className="text-sm text-muted-foreground">
+                    Beat the dealer and win 2x your bet
                   </p>
                 </div>
                 <ArrowRight className="ml-auto h-5 w-5 text-muted-foreground" />

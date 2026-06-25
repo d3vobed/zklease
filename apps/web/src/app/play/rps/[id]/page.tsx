@@ -677,6 +677,30 @@ export default function RPSGamePage() {
         </Card>
       )}
 
+      {status !== "waiting" && status !== "cancelled" && !needsOpponent && (
+        <Card className="mt-8 border-amber-500/20">
+          <CardContent className="p-5">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <Coins className="h-4 w-4 text-amber-400" />
+              Bet on Winner
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="border-emerald-500/30 hover:bg-emerald-500/10">
+                <Trophy className="mr-2 h-4 w-4 text-emerald-400" />
+                {currentGame.creator === publicKey ? "You Win" : "Creator Wins"}
+              </Button>
+              <Button variant="outline" className="border-purple-500/30 hover:bg-purple-500/10">
+                <Trophy className="mr-2 h-4 w-4 text-purple-400" />
+                {currentGame.opponent === publicKey ? "You Win" : "Opponent Wins"}
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground text-center">
+              Predictions coming soon — place bets on game outcomes
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {!needsOpponent && status !== "completed" && status !== "cancelled" && (
         <div className="mt-8 flex justify-center">
           <Button variant="ghost" size="sm" onClick={() => fetchGame(gameId)}>
