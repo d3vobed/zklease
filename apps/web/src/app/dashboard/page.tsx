@@ -28,6 +28,7 @@ import {
   Clock,
   Play,
   Eye,
+  FileCode,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -312,6 +313,32 @@ export default function DashboardPage() {
               </Link>
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
+              <FileCode className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">ZKLease Contract</p>
+              <code className="font-mono text-xs sm:text-sm">
+                CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG
+              </code>
+            </div>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <a
+              href="https://stellar.expert/explorer/testnet/contract/CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 h-3 w-3" />
+              View Contract
+            </a>
+          </Button>
         </CardContent>
       </Card>
 
