@@ -49,7 +49,7 @@ export default function PlayPage() {
   } = useGame();
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
-  const [entryFee, setEntryFee] = useState("10");
+  const [entryFee, setEntryFee] = useState("0");
   const [joiningId, setJoiningId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -182,23 +182,23 @@ export default function PlayPage() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="entryFee">Entry Fee (USDC)</Label>
-                  <div className="relative">
-                    <Input
-                      id="entryFee"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={entryFee}
-                      onChange={(e) => setEntryFee(e.target.value)}
-                      placeholder="10"
-                      className="pl-8"
-                    />
-                    <CoinsIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Both players stake this amount. Winner takes all minus fees.
-                  </p>
+                    <Label htmlFor="entryFee">Entry Fee (USDC)</Label>
+                    <div className="relative">
+                      <Input
+                        id="entryFee"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={entryFee}
+                        onChange={(e) => setEntryFee(e.target.value)}
+                        placeholder="0"
+                        className="pl-8"
+                      />
+                      <CoinsIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Entry fee is optional. Set to 0 for a free game.
+                    </p>
                 </div>
               </div>
               <DialogFooter>
@@ -210,7 +210,7 @@ export default function PlayPage() {
                 </Button>
                 <Button
                   onClick={handleCreate}
-                  disabled={isCreating || !entryFee || parseFloat(entryFee) <= 0}
+                  disabled={isCreating || !entryFee || parseFloat(entryFee) < 0}
                 >
                   {isCreating ? (
                     <>

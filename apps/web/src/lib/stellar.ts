@@ -18,7 +18,7 @@ export const STELLAR_EXPLORER_URL = "https://stellar.expert/explorer/testnet";
 
 // Update this after deploying the contract via `soroban contract deploy`
 export let ZKLEASE_CONTRACT_ID =
-  "CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG";
+  "CAWSA6HEU3KCIU64A3P3AMQWF5E7UDKE6PWWEFDFJO4V7TPSYGC3M4LW";
 
 export function setContractId(id: string) {
   ZKLEASE_CONTRACT_ID = id;

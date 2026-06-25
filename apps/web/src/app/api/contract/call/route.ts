@@ -12,7 +12,7 @@ import {
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
-const CONTRACT_ID = "CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG";
+const CONTRACT_ID = "CAWSA6HEU3KCIU64A3P3AMQWF5E7UDKE6PWWEFDFJO4V7TPSYGC3M4LW";
 const ADMIN_SOURCE = "GDIVMD5PJ4GCANFUJMOWKLDDNITY4DY63IF4VAHEEEYK7KAIAOBAWZBF";
 
 const server = new SorobanRpc.Server(RPC_URL, { allowHttp: true });
@@ -33,6 +33,12 @@ function buildScVal(arg: { type: string; value: any }): xdr.ScVal {
     case "vec": {
       if (!Array.isArray(arg.value)) throw new Error("vec arg must be an array");
       return xdr.ScVal.scvVec(arg.value.map((v: any) => buildScVal(v)));
+    }
+    case "option": {
+      if (arg.value === null || arg.value === undefined) {
+        return xdr.ScVal.scvVec([]);
+      }
+      return xdr.ScVal.scvVec([buildScVal(arg.value)]);
     }
     default: throw new Error(`Unknown arg type: ${arg.type}`);
   }

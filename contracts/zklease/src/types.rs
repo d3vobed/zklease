@@ -77,6 +77,7 @@ pub enum DataKey {
     Game(u64),
     PredictionCounter,
     Prediction(u64),
+    GamePrediction(u64),
     Balance(Address),
 }
 

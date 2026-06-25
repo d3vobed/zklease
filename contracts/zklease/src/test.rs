@@ -420,7 +420,7 @@ fn test_create_rps_game() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
 
     assert_eq!(game_id, 1u64);
 
@@ -443,7 +443,7 @@ fn test_create_rps_game_insufficient_balance() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let result = client.try_create_rps_game(&alice, &bob, &100u128);
+    let result = client.try_create_rps_game(&alice, &Some(bob.clone()), &100u128);
     assert!(result.is_err());
 }
 
@@ -460,7 +460,7 @@ fn test_join_rps_game() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
     client.join_rps_game(&game_id, &bob);
 
     let game = client.get_rps_game(&game_id);
@@ -481,9 +481,52 @@ fn test_join_rps_game_wrong_player() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
 
     let result = client.try_join_rps_game(&game_id, &mallory);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_join_rps_game_open_lobby() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ZKLease);
+    let client = ZKLeaseClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let verifier = Address::generate(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &verifier);
+
+    // Create open lobby (opponent = None)
+    let game_id = client.create_rps_game(&alice, &None::<Address>, &0u128);
+    assert_eq!(game_id, 1u64);
+
+    // Bob can join because it's an open lobby
+    client.join_rps_game(&game_id, &bob);
+
+    let game = client.get_rps_game(&game_id);
+    assert_eq!(game.state, crate::types::GameState::AwaitingReveal);
+    assert_eq!(game.opponent, Some(bob.clone()));
+}
+
+#[test]
+fn test_join_rps_game_creator_cannot_join_own_game() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ZKLease);
+    let client = ZKLeaseClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let verifier = Address::generate(&env);
+    let alice = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &verifier);
+
+    let game_id = client.create_rps_game(&alice, &None::<Address>, &0u128);
+
+    let result = client.try_join_rps_game(&game_id, &alice);
     assert!(result.is_err());
 }
 
@@ -500,7 +543,7 @@ fn test_full_rps_game_flow() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
     client.join_rps_game(&game_id, &bob);
 
     // Alice commits rock (0)
@@ -541,7 +584,7 @@ fn test_rps_rock_beats_scissors() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
     client.join_rps_game(&game_id, &bob);
 
     // Alice: rock (0), Bob: scissors (2)
@@ -572,7 +615,7 @@ fn test_rps_draw() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
     client.join_rps_game(&game_id, &bob);
 
     // Both play rock (0)
@@ -604,7 +647,7 @@ fn test_rps_invalid_reveal_fails() {
     env.mock_all_auths();
     client.initialize(&admin, &verifier);
 
-    let game_id = client.create_rps_game(&alice, &bob, &0u128);
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
     client.join_rps_game(&game_id, &bob);
 
     // Alice commits rock (0)
@@ -633,8 +676,8 @@ fn test_get_all_rps_games() {
     let games_before = client.get_all_rps_games();
     assert_eq!(games_before.len(), 0);
 
-    client.create_rps_game(&alice, &bob, &0u128);
-    client.create_rps_game(&bob, &alice, &0u128);
+    client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
+    client.create_rps_game(&bob, &Some(alice.clone()), &0u128);
 
     let games_after = client.get_all_rps_games();
     assert_eq!(games_after.len(), 2);
@@ -860,5 +903,50 @@ fn test_deposit_insufficient_withdraw_fails() {
     client.initialize(&admin, &verifier);
 
     let result = client.try_withdraw(&admin, &100u128);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_create_game_prediction() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ZKLease);
+    let client = ZKLeaseClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let verifier = Address::generate(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &verifier);
+
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
+    let pred_id = client.create_game_prediction(&game_id, &alice);
+
+    assert_eq!(pred_id, 1u64);
+
+    let stored_game_pred = client.get_game_prediction_id(&game_id);
+    assert_eq!(stored_game_pred, Some(1u64));
+
+    let pred = client.get_prediction(&pred_id);
+    assert_eq!(pred.question, Symbol::new(&env, "game_winner"));
+    assert_eq!(pred.options.len(), 2);
+    assert!(!pred.resolved);
+}
+
+#[test]
+fn test_create_game_prediction_non_creator_fails() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ZKLease);
+    let client = ZKLeaseClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let verifier = Address::generate(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &verifier);
+
+    let game_id = client.create_rps_game(&alice, &Some(bob.clone()), &0u128);
+    let result = client.try_create_game_prediction(&game_id, &bob);
     assert!(result.is_err());
 }

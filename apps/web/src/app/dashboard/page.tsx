@@ -317,13 +317,13 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs text-muted-foreground">ZKLease Contract</p>
               <code className="font-mono text-xs sm:text-sm">
-                CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG
+CAWSA6HEU3KCIU64A3P3AMQWF5E7UDKE6PWWEFDFJO4V7TPSYGC3M4LW
               </code>
             </div>
           </div>
           <Button asChild variant="outline" size="sm">
             <a
-              href="https://stellar.expert/explorer/testnet/contract/CDTQZLYPXSUULOE6UECBJK5T63AAPP3K6A4LQ246AOHTYD7TQPADXMLG"
+              href="https://stellar.expert/explorer/testnet/contract/CAWSA6HEU3KCIU64A3P3AMQWF5E7UDKE6PWWEFDFJO4V7TPSYGC3M4LW"
               target="_blank"
               rel="noopener noreferrer"
             >

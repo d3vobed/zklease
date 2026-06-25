@@ -56,7 +56,7 @@ function mapGame(raw: any): Game {
     status: mapStatus(raw.state || raw.status || "Waiting"),
     players: [],
     winner: raw.winner || undefined,
-    createdAt: raw.createdAt || raw.created_at ? Number(raw.created_at) * 1000 : Date.now(),
+    createdAt: raw.createdAt ? Number(raw.createdAt) : Date.now(),
   };
 }
 
@@ -111,15 +111,33 @@ export function useGame() {
     return result;
   }, [publicKey, kit]);
 
+  const depositFunds = useCallback(async () => {
+    if (!publicKey || !kit) return;
+    try {
+      const { result } = await simulateContractCall("get_balance", publicKey, [
+        { type: "address", value: publicKey },
+      ]);
+      if (!result || Number(result) === 0) {
+        await submitTx("deposit", [
+          { type: "address", value: publicKey },
+          { type: "u128", value: 1000000000 },
+        ]);
+      }
+    } catch {
+      // silently fail - deposit might fail if account not funded
+    }
+  }, [publicKey, kit, submitTx]);
+
   const createGame = useCallback(
     async (entryFee: number): Promise<string | null> => {
       if (!publicKey) { setError("Wallet not connected"); return null; }
       setIsCreating(true);
       setError(null);
       try {
+        await depositFunds();
         const result = await submitTx("create_rps_game", [
           { type: "address", value: publicKey },
-          { type: "address", value: publicKey },
+          { type: "option", value: null },
           { type: "u128", value: entryFee },
         ]);
         await fetchGames();
@@ -131,7 +149,7 @@ export function useGame() {
         setIsCreating(false);
       }
     },
-    [publicKey, submitTx, fetchGames]
+    [publicKey, submitTx, fetchGames, depositFunds]
   );
 
   const joinGame = useCallback(

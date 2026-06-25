@@ -218,7 +218,7 @@ impl ZKLease {
     pub fn create_rps_game(
         env: Env,
         creator: Address,
-        opponent: Address,
+        opponent: Option<Address>,
         entry_fee: u128,
     ) -> Result<u64, ContractError> {
         creator.require_auth();
@@ -245,7 +245,7 @@ impl ZKLease {
         let game = Game {
             id: counter,
             creator: creator.clone(),
-            opponent: Some(opponent.clone()),
+            opponent,
             entry_fee,
             move_commit_creator: MoveCommit {
                 commitment: Bytes::new(&env),
@@ -270,9 +270,10 @@ impl ZKLease {
             .instance()
             .set(&DataKey::Balance(creator.clone()), &(bal - entry_fee));
 
+        let opp_ref = game.opponent.clone().unwrap_or(creator.clone());
         env.events().publish(
             (symbol_short!("game"), symbol_short!("create")),
-            (counter, creator.clone(), opponent.clone(), entry_fee),
+            (counter, creator.clone(), opp_ref, entry_fee),
         );
 
         Ok(counter)
@@ -295,9 +296,20 @@ impl ZKLease {
             return Err(ContractError::GameNotJoinable);
         }
 
-        let opponent = game.opponent.clone().ok_or(ContractError::GameNotJoinable)?;
-        if joiner != opponent {
+        if joiner == game.creator {
             return Err(ContractError::Unauthorized);
+        }
+
+        match game.opponent.clone() {
+            Some(ref opp) => {
+                if joiner != *opp {
+                    return Err(ContractError::Unauthorized);
+                }
+            }
+            None => {
+                // Open lobby: accept any joiner, set them as opponent
+                game.opponent = Some(joiner.clone());
+            }
         }
 
         let bal: u128 = env
@@ -583,6 +595,69 @@ impl ZKLease {
         Ok(counter)
     }
 
+    pub fn create_game_prediction(
+        env: Env,
+        game_id: u64,
+        creator: Address,
+    ) -> Result<u64, ContractError> {
+        creator.require_auth();
+
+        let game: Game = env
+            .storage()
+            .instance()
+            .get(&DataKey::Game(game_id))
+            .ok_or(ContractError::GameNotFound)?;
+
+        if game.creator != creator {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut counter: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::PredictionCounter)
+            .unwrap_or(0);
+        counter += 1;
+        env.storage()
+            .instance()
+            .set(&DataKey::PredictionCounter, &counter);
+
+        let mut options: Vec<Symbol> = Vec::new(&env);
+        options.push_back(Symbol::new(&env, "creator"));
+        options.push_back(Symbol::new(&env, "opponent"));
+
+        let mut total_bets: Vec<u128> = Vec::new(&env);
+        total_bets.push_back(0u128);
+        total_bets.push_back(0u128);
+
+        let prediction = Prediction {
+            id: counter,
+            creator: creator.clone(),
+            question: Symbol::new(&env, "game_winner"),
+            options,
+            resolution_time: env.ledger().timestamp() + 86400,
+            resolved: false,
+            winning_option: 0,
+            total_bets,
+            bets: Vec::new(&env),
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Prediction(counter), &prediction);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::GamePrediction(game_id), &counter);
+
+        env.events().publish(
+            (symbol_short!("pred"), symbol_short!("create")),
+            (counter, creator),
+        );
+
+        Ok(counter)
+    }
+
     pub fn place_bet(
         env: Env,
         prediction_id: u64,
@@ -799,6 +874,10 @@ impl ZKLease {
         );
 
         Ok(total_won)
+    }
+
+    pub fn get_game_prediction_id(env: Env, game_id: u64) -> Option<u64> {
+        env.storage().instance().get(&DataKey::GamePrediction(game_id))
     }
 
     pub fn get_prediction(env: Env, prediction_id: u64) -> Result<Prediction, ContractError> {
